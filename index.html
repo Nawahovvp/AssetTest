@@ -6,8 +6,6 @@
   <title>รายงานทรัพย์สิน คลังสินค้า Sparepart</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <!-- SweetAlert2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     :root {
       --primary-color: #6366f1; /* สีม่วงน้ำเงินสดใสแบบ Canva */
@@ -424,11 +422,6 @@
       max-width: 400px;
       padding: 24px;
     }
-    #gsCodeModal .modal-content {
-      max-width: 900px;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
     @keyframes zoomInRotate {
       from { opacity: 0; transform: scale(0.8) rotate(-5deg); }
       to { opacity: 1; transform: scale(1) rotate(0deg); }
@@ -458,9 +451,6 @@
       font-size: 20px;
       margin-bottom: 16px;
       padding-bottom: 8px;
-    }
-    #gsCodeModal .modal-content h2 {
-      font-size: 18px;
     }
     .close {
       color: #94a3b8;
@@ -844,18 +834,6 @@
       border-left: 4px solid var(--danger-color);
       background-color: #fef2f2;
     }
-    /* NEW: CSS for GS Code Modal */
-    #gsCodeModal .modal-content pre {
-      background: #f8fafc;
-      padding: 16px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      line-height: 1.4;
-      white-space: pre-wrap;
-      border: 1px solid #e2e8f0;
-    }
     @media (max-width: 768px) {
       .filter-row {
         grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
@@ -923,12 +901,6 @@
         padding: 16px;
         margin: 1% auto;
         width: 99%;
-      }
-      #gsCodeModal .modal-content {
-        padding: 12px;
-        margin: 1% auto;
-        width: 99%;
-        max-height: 90vh;
       }
       .modal-buttons {
         justify-content: center;
@@ -1103,14 +1075,6 @@
       transform: translateY(-2px);
       box-shadow: var(--shadow-lg);
     }
-    /* NEW: Button for GS Code */
-    .gs-code-button {
-      background: linear-gradient(135deg, var(--info-color), #0891b2) !important;
-      margin-left: 10px;
-    }
-    .gs-code-button:hover {
-      background: linear-gradient(135deg, #0891b2, #0e7490) !important;
-    }
   </style>
 </head>
 <body>
@@ -1138,7 +1102,6 @@
       <button id="reportButton" class="action-button print-button"><i class="fas fa-print"></i> รายงาน</button>
       <button id="historyButton" class="action-button history-button"><i class="fas fa-history"></i> ประวัติ</button>
       <button id="documentsButton" class="action-button documents-button"><i class="fas fa-file-alt"></i> เอกสารทั้งหมด</button>
-      <button id="gsCodeButton" class="action-button gs-code-button"><i class="fas fa-code"></i> ดู Code GS</button>
       <button id="cartButton" class="action-button cart-button" disabled><i class="fas fa-shopping-cart"></i> (0)</button>
       <button id="clearCartButton" class="action-button" style="background:linear-gradient(135deg,var(--danger-color),#dc2626);" disabled><i class="fas fa-trash"></i> ล้างตะกร้า</button>
       <div id="userInfo"><i class="fas fa-user"></i> ยินดีต้อนรับ: <span id="loggedUserName"></span> <button id="logoutButton"><i class="fas fa-sign-out-alt"></i> Logout</button></div>
@@ -1321,7 +1284,7 @@
         </table>
       </div>
       <div style="margin-top:20px;font-size:13px;color:var(--secondary-color);padding:16px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:12px;border-left:4px solid var(--primary-color);box-shadow:var(--shadow-sm);">
-        <i class="fas fa-info-circle"></i> ระบบบันทึกข้อมูลใน Google Sheets ผ่าน Apps Script (JSONP) และ localStorage (backup)
+        <i class="fas fa-info-circle"></i> ระบบบันทึกข้อมูลใน localStorage ของเบราว์เซอร์ และส่งไป Google Apps Script "transfers" อัตโนมัติ
       </div>
     </div>
   </div>
@@ -1379,14 +1342,6 @@
       </div>
     </div>
   </div>
-  <!-- GS Code Modal -->
-  <div id="gsCodeModal" class="modal">
-    <div class="modal-content">
-      <span class="close" id="closeGsCodeModal">&times;</span>
-      <h2><i class="fas fa-code"></i> Google Apps Script Code</h2>
-      <pre id="gsCodeContent"></pre>
-    </div>
-  </div>
   <!-- Login Modal -->
   <div id="loginModal" class="modal">
     <div class="modal-content">
@@ -1410,19 +1365,49 @@
     </div>
   </div>
   <script>
-    // Apps Script URL for JSONP
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby9Jqr5n1ddMqPNER2AibnZbuTB4HjUvL0OPdT8CixI5RrBxsi-EoAvWaBGREmPMIvT/exec';
+    // Google Apps Script URL for transfers (replaces Supabase)
+    const gasUrl = 'https://script.google.com/macros/s/AKfycby9Jqr5n1ddMqPNER2AibnZbuTB4HjUvL0OPdT8CixI5RrBxsi-EoAvWaBGREmPMIvT/exec';
     // Telegram Config - แก้ไข chat_id ให้เป็นค่าจาก Appsheet (สำหรับ Group Chat ต้องมีลบหน้า)
     const telegramBotToken = '7787184267:AAGdxqbkQ6Xfb_G1mm_220tPNdvogGSNog4';
     const telegramChatId = '-4562197204'; // แก้ไขจาก '1002271944718' เป็น '-1002271944718' สำหรับ Group Chat
-    // Global callback function for JSONP
-    window.handleAppsScriptResponse = function(data, status) {
-      // Handle response based on pending request (use a global pendingRequest var or queue)
-      if (window.pendingRequest && window.pendingRequest.resolve) {
-        window.pendingRequest.resolve({ data, status });
-        window.pendingRequest = null;
+    // JSONP helper function for cross-origin requests
+    function jsonp(url, callbackName = 'callback') {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        const cbName = `jsonp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        window[cbName] = (data) => {
+          delete window[cbName];
+          if (script.parentNode) {
+            document.body.removeChild(script);
+          }
+          resolve(data);
+        };
+        script.src = `${url}&${callbackName}=${encodeURIComponent(cbName)}`;
+        script.onerror = () => {
+          delete window[cbName];
+          if (script.parentNode) {
+            document.body.removeChild(script);
+          }
+          reject(new Error('JSONP request failed'));
+        };
+        document.body.appendChild(script);
+      });
+    }
+    // FIXED: Safe JSON parse helper
+    function safeParseLocal(key, defaultValue = []) {
+      try {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return Array.isArray(parsed) ? parsed : defaultValue;
+        }
+        return defaultValue;
+      } catch (e) {
+        console.error(`Invalid localStorage for ${key}, resetting:`, e);
+        localStorage.removeItem(key);
+        return defaultValue;
       }
-    };
+    }
     // DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function() {
       const sheetID = '1caJemfomWLXEeqAlKFNMzGrT6divjSt5QZYeIjuTg58';
@@ -1460,7 +1445,6 @@
       const reportButton = document.getElementById('reportButton');
       const historyButton = document.getElementById('historyButton');
       const documentsButton = document.getElementById('documentsButton');
-      const gsCodeButton = document.getElementById('gsCodeButton');
       const cartButton = document.getElementById('cartButton');
       const clearCartButton = document.getElementById('clearCartButton');
       const globalHistoryModal = document.getElementById('globalHistoryModal');
@@ -1492,9 +1476,6 @@
       const rememberCheckbox = document.getElementById('rememberCheckbox');
       const loggedUserName = document.getElementById('loggedUserName');
       const logoutButton = document.getElementById('logoutButton');
-      const gsCodeModal = document.getElementById('gsCodeModal');
-      const closeGsCodeModal = document.getElementById('closeGsCodeModal');
-      const gsCodeContent = document.getElementById('gsCodeContent');
       let allData = [];
       let selectedAssets = []; // ตะกร้า
       let currentCartOwner = null; // เพิ่ม: เก็บผู้รับผิดชอบสำหรับตะกร้า
@@ -1506,31 +1487,6 @@
       let isMultiMode = false; // ตรวจสอบโหมด multi หรือ single
       let userData = []; // ข้อมูลผู้ใช้จาก Google Sheet
       let loggedUser = null; // ข้อมูลผู้ใช้ที่ล็อกอิน
-      let pendingRequest = null; // สำหรับ JSONP callback
-      // ฟังก์ชัน JSONP request
-      function jsonpRequest(params) {
-        return new Promise((resolve, reject) => {
-          const callbackName = 'handleAppsScriptResponse_' + Date.now();
-          window[callbackName] = function(data, status) {
-            delete window[callbackName];
-            if (status === 'success') {
-              resolve(data);
-            } else {
-              reject(new Error(data || 'Request failed'));
-            }
-          };
-          const script = document.createElement('script');
-          const queryParams = new URLSearchParams(params);
-          queryParams.append('callback', callbackName);
-          script.src = appsScriptUrl + '?' + queryParams.toString();
-          script.onerror = () => {
-            delete window[callbackName];
-            reject(new Error('JSONP request failed'));
-          };
-          document.head.appendChild(script);
-          pendingRequest = { resolve: window[callbackName] };
-        });
-      }
       // ฟังก์ชันโหลดข้อมูลผู้ใช้
       async function loadUserData() {
         try {
@@ -1573,9 +1529,9 @@
             sessionStorage.setItem('userSession', JSON.stringify(user));
           }
           showLoggedIn();
-          Swal.fire('เข้าสู่ระบบสำเร็จ!', '', 'success');
+          alert('เข้าสู่ระบบสำเร็จ');
         } else {
-          Swal.fire('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', '', 'error');
+          alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
         }
       }
       // ฟังก์ชันล็อกเอาท์
@@ -2168,76 +2124,6 @@
         documentsModal.style.display = 'block';
         await renderDocumentsList();
       });
-      // NEW: GS Code Button
-      gsCodeButton.addEventListener('click', () => {
-        gsCodeContent.textContent = `// Google Apps Script Code for Handling JSONP Requests\nfunction doGet(e) {
-  const action = e.parameter.action || 'get';
-  const callback = e.parameter.callback;
-  let response = { status: 'error', data: 'Invalid action' };
-  try {
-    switch (action) {
-      case 'getTransfers':
-        // Fetch from Google Sheet (assume sheet name 'Transfers')
-        const ss = SpreadsheetApp.openById('YOUR_SHEET_ID'); // Replace with your Transfers sheet ID
-        const sheet = ss.getSheetByName('Transfers');
-        const data = sheet.getDataRange().getValues();
-        response = { status: 'success', data: data.slice(1) }; // Skip header
-        break;
-      case 'insertTransfer':
-        const payload = JSON.parse(e.parameter.payload || '{}');
-        // Append to sheet
-        const ssInsert = SpreadsheetApp.openById('YOUR_SHEET_ID');
-        const sheetInsert = ssInsert.getSheetByName('Transfers');
-        sheetInsert.appendRow(Object.values(payload));
-        response = { status: 'success', data: payload };
-        break;
-      case 'deleteTransfer':
-        const transferId = e.parameter.id;
-        // Delete row by ID (assume column A is ID)
-        const ssDelete = SpreadsheetApp.openById('YOUR_SHEET_ID');
-        const sheetDelete = ssDelete.getSheetByName('Transfers');
-        const dataDelete = sheetDelete.getDataRange().getValues();
-        for (let i = 1; i < dataDelete.length; i++) {
-          if (dataDelete[i][0] == transferId) {
-            sheetDelete.deleteRow(i + 1);
-            response = { status: 'success', data: 'Deleted' };
-            break;
-          }
-        }
-        break;
-      case 'generateDocId':
-        // Logic to generate Doc_id (e.g., max seq for year)
-        const currentYear = new Date().getFullYear();
-        const ssDoc = SpreadsheetApp.openById('YOUR_SHEET_ID');
-        const sheetDoc = ssDoc.getSheetByName('Transfers');
-        const dataDoc = sheetDoc.getDataRange().getValues();
-        let maxSeq = 0;
-        dataDoc.slice(1).forEach(row => {
-          if (row[0] && row[0].toString().match(/^\d{3}\/\d{4}$/)) { // Assume Doc_id in col A
-            const match = row[0].toString().match(/^(\d{3})\/\d{4}$/);
-            if (match && parseInt(match[2]) === currentYear) {
-              maxSeq = Math.max(maxSeq, parseInt(match[1]));
-            }
-          }
-        });
-        const newSeq = (maxSeq + 1).toString().padStart(3, '0');
-        response = { status: 'success', data: \`\${newSeq}/\${currentYear}\` };
-        break;
-      default:
-        response = { status: 'error', data: 'Unknown action' };
-    }
-  } catch (error) {
-    response = { status: 'error', data: error.toString() };
-  }
-  const jsonpResponse = \`\${callback}(${JSON.stringify(response)}, '\${response.status}');\`;
-  return ContentService.createTextOutput(jsonpResponse).setMimeType(ContentService.MimeType.JAVASCRIPT);
-}
-function doPost(e) {
-  return doGet(e); // Support POST as GET for JSONP
-}`;
-        gsCodeModal.style.display = 'block';
-      });
-      closeGsCodeModal.onclick = () => { gsCodeModal.style.display = 'none'; };
       cartButton.addEventListener('click', openCartModal);
       clearCartButton.addEventListener('click', clearCart);
       closeGlobalHistoryModal.onclick = () => { globalHistoryModal.style.display = 'none'; };
@@ -2349,7 +2235,6 @@ function doPost(e) {
         if (e.target === pickerModal) { pickerModal.style.display = 'none'; }
         if (e.target === globalHistoryModal) { globalHistoryModal.style.display = 'none'; }
         if (e.target === documentsModal) { documentsModal.style.display = 'none'; }
-        if (e.target === gsCodeModal) { gsCodeModal.style.display = 'none'; }
         if (e.target === loginModal && !loggedUser) { alert('กรุณาเข้าสู่ระบบก่อน'); } // ป้องกันปิด login
       });
       document.getElementById('tf_toOwner').addEventListener('input', () => {
@@ -2420,89 +2305,122 @@ function doPost(e) {
         // Validate และ enable ปุ่มพิมพ์
         validateForm();
       }
-      // ฟังก์ชันลบรายการประวัติเดี่ยว
+      // FIXED: getTransfers/setTransfers - Align action names, handle response.status
+      async function getTransfers(assetId = null) {
+        try {
+          // ลองโหลดจาก GAS ก่อน (action: 'getTransfers')
+          const params = new URLSearchParams({ action: 'getTransfers' });
+          if (assetId) params.append('asset_id', assetId); // GAS ยังไม่ filter แต่ส่งไว้เผื่อ
+          const url = `${gasUrl}?${params.toString()}`;
+          const response = await jsonp(url);
+          if (response.status !== 'success') throw new Error(response.data || 'Unknown GAS error');
+        
+          const transfers = response.data || [];
+          // Sync กับ localStorage ถ้า GAS ว่างแต่ local มี
+          const localTransfers = safeParseLocal('assetTransfers');
+          if (transfers.length === 0 && localTransfers.length > 0) {
+            // Sync local to GAS
+            for (const t of localTransfers) {
+              const normalizedT = { ...t, asset_id: normalizeAssetId(t.asset_id) };
+              const res = await setTransfers(normalizedT);
+              if (res && res.row_id) { // ใช้ row_id จาก GAS
+                const index = localTransfers.findIndex(lt => lt.asset_id === t.asset_id && lt.date === t.date);
+                if (index !== -1) localTransfers[index].id = res.row_id;
+              }
+            }
+            localStorage.setItem('assetTransfers', JSON.stringify(localTransfers));
+            return await getTransfers(assetId); // Reload
+          }
+          // Save to local as backup (set id = row_id if available)
+          transfers.forEach(t => { if (t.row_id) t.id = t.row_id; });
+          localStorage.setItem('assetTransfers', JSON.stringify(transfers));
+          return transfers;
+        } catch (err) {
+          console.error('GAS error, fallback to localStorage:', err);
+          return safeParseLocal('assetTransfers');
+        }
+      }
+      async function setTransfers(payload) {
+        try {
+          // Normalize asset_id ก่อนบันทึก
+          payload.asset_id = normalizeAssetId(payload.asset_id);
+          // ส่งไป GAS via JSONP (action: 'insertTransfer')
+          const params = new URLSearchParams({ action: 'insertTransfer' });
+          params.append('payload', JSON.stringify(payload));
+          const url = `${gasUrl}?${params.toString()}`;
+          const response = await jsonp(url);
+          if (response.status !== 'success') throw new Error(response.data || 'Insert failed');
+        
+          const result = response.data;
+          // ถ้าสำเร็จ, set id = row_id จาก GAS
+          if (result && result.row_id) {
+            payload.id = result.row_id;
+          }
+          // บันทึก localStorage เสมอ (backup)
+          const localList = safeParseLocal('assetTransfers');
+          localList.push(payload);
+          localStorage.setItem('assetTransfers', JSON.stringify(localList));
+          console.log('Saved to GAS successfully with ID:', result?.row_id);
+          return result;
+        } catch (err) {
+          console.error('GAS setTransfers error (data saved to local only):', err);
+          alert('บันทึกสำเร็จในเครื่อง แต่ล้มเหลวในการ sync ไป Google Apps Script: ' + err.message + '\nตรวจสอบ script ใน GAS');
+          // Save to local anyway
+          const localList = safeParseLocal('assetTransfers');
+          localList.push(payload);
+          localStorage.setItem('assetTransfers', JSON.stringify(localList));
+          throw err;
+        }
+      }
+      // FIXED: deleteSingleTransfer - Align action
       async function deleteSingleTransfer(transferId, assetId) {
         if (!confirm('คุณแน่ใจหรือไม่ที่จะลบรายการโอนย้ายนี้?')) return;
         try {
-          Swal.fire({
-            title: 'กำลังลบ...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-          });
-          // ลบจาก Apps Script via JSONP
-          const params = {
-            action: 'deleteTransfer',
-            id: transferId
-          };
-          const response = await jsonpRequest(params);
-          if (response.status !== 'success') throw new Error(response.data);
+          // ลบจาก GAS via JSONP (action: 'deleteTransfer')
+          const params = new URLSearchParams({ action: 'deleteTransfer', id: transferId });
+          const url = `${gasUrl}?${params.toString()}`;
+          const response = await jsonp(url);
+          if (response.status !== 'success') throw new Error(response.data || 'Delete failed');
+        
           // ลบจาก localStorage
-          let localList = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
+          let localList = safeParseLocal('assetTransfers');
           localList = localList.filter(t => t.id !== transferId);
           localStorage.setItem('assetTransfers', JSON.stringify(localList));
-          // Re-render history ด้วย normalized assetId
+          // Re-render history
           await renderHistory(normalizeAssetId(assetId));
-          Swal.fire('ลบรายการเรียบร้อย', '', 'success');
+          alert('ลบรายการเรียบร้อย');
         } catch (err) {
           console.error('Delete error:', err);
-          Swal.fire('เกิดข้อผิดพลาดในการลบ', err.message, 'error');
+          alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
         }
       }
-      // FIXED: getTransfers - ใช้ JSONP ไป Apps Script
-      async function getTransfers() {
+      // FIXED: generateDocId - Use separate GAS call + safe local fallback
+      async function generateDocId() {
         try {
-          const params = {
-            action: 'getTransfers'
-          };
-          const response = await jsonpRequest(params);
-          if (response.status !== 'success') throw new Error(response.data);
-          const transfers = response.data || [];
-          // Sync กับ localStorage ถ้า Apps Script ว่างแต่ local มี
-          const localTransfers = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
-          if (transfers.length === 0 && localTransfers.length > 0) {
-            // Sync local to Apps Script
-            for (const t of localTransfers) {
-              const payloadStr = JSON.stringify(t);
-              const syncParams = {
-                action: 'insertTransfer',
-                payload: payloadStr
-              };
-              try {
-                await jsonpRequest(syncParams);
-              } catch (syncErr) {
-                console.error('Sync error:', syncErr);
-              }
-            }
-            localStorage.removeItem('assetTransfers'); // ลบ local หลัง sync
-            return await getTransfers(); // Reload
-          }
-          return transfers;
+          // Call GAS directly for generateDocId
+          const params = new URLSearchParams({ action: 'generateDocId' });
+          const url = `${gasUrl}?${params.toString()}`;
+          const response = await jsonp(url);
+          if (response.status !== 'success') throw new Error(response.data || 'Generate Doc_id failed');
+          return response.data;
         } catch (err) {
-          console.error('Apps Script error, fallback to localStorage:', err);
-          return JSON.parse(localStorage.getItem('assetTransfers') || '[]');
-        }
-      }
-      // FIXED: setTransfers - ใช้ JSONP ไป Apps Script
-      async function setTransfers(newPayload) {
-        // Normalize asset_id ก่อนบันทึก
-        newPayload.asset_id = normalizeAssetId(newPayload.asset_id);
-        // บันทึก localStorage เสมอ (backup) - เก็บฟิลด์ทั้งหมด
-        const localList = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
-        localList.push(newPayload);
-        localStorage.setItem('assetTransfers', JSON.stringify(localList));
-        // ส่งไป Apps Script - JSONP
-        try {
-          const payloadStr = JSON.stringify(newPayload);
-          const params = {
-            action: 'insertTransfer',
-            payload: payloadStr
-          };
-          const response = await jsonpRequest(params);
-          if (response.status !== 'success') throw new Error(response.data);
-          console.log('Saved to Google Sheets successfully');
-        } catch (err) {
-          console.error('Apps Script setTransfers error (data saved to local only):', err);
-          throw err; // Rethrow for caller
+          console.error('Generate Doc_id error (GAS):', err);
+          // Fallback: ใช้ localStorage สำหรับ max seq (safe parse)
+          const localTransfers = safeParseLocal('assetTransfers');
+          const currentYear = new Date().getFullYear();
+          const yearDocs = localTransfers
+            .filter(t => {
+              if (!t.date || !t.Doc_id) return false;
+              const tDate = new Date(t.date);
+              return tDate.getFullYear() === currentYear;
+            })
+            .map(t => t.Doc_id.match(/^(\d{3})\/\d{4}$/))
+            .filter(match => match)
+            .map(match => parseInt(match[1]))
+            .sort((a, b) => b - a);
+          const maxSeq = yearDocs.length > 0 ? yearDocs[0] : 0;
+          const seq = maxSeq + 1;
+          return `${seq.toString().padStart(3, '0')}/${currentYear}`;
         }
       }
       // FIXED: Telegram Notification Function - ปรับให้รับ payloads array เสมอ (สำหรับ multi/single) และส่ง notification เดียว
@@ -2560,222 +2478,6 @@ function doPost(e) {
           }
         }
       }
-      // FIXED: Generate เลขที่เอกสาร unique ต่อ Doc_id (ไม่สนจำนวน assets ใน doc)
-      async function generateDocId() {
-        try {
-          const currentYear = new Date().getFullYear();
-          const params = {
-            action: 'generateDocId'
-          };
-          const response = await jsonpRequest(params);
-          if (response.status !== 'success') throw new Error(response.data);
-          return response.data || `001/${currentYear}`;
-        } catch (err) {
-          console.error('Generate Doc_id error:', err);
-          // Fallback: ใช้ localStorage สำหรับ max seq
-          const localTransfers = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
-          const currentYear = new Date().getFullYear();
-          const yearDocs = localTransfers
-            .filter(t => {
-              const tDate = new Date(t.date);
-              return tDate.getFullYear() === currentYear && t.Doc_id;
-            })
-            .map(t => t.Doc_id.match(/^(\d{3})\/\d{4}$/))
-            .filter(match => match)
-            .map(match => parseInt(match[1]))
-            .sort((a, b) => b - a);
-          const maxSeq = yearDocs.length > 0 ? yearDocs[0] : 0;
-          const seq = maxSeq + 1;
-          return `${seq.toString().padStart(3, '0')}/${currentYear}`;
-        }
-      }
-      // renderHistory เปลี่ยนเป็น async และใช้ normalize
-      async function renderHistory(assetId) {
-        const normalizedId = normalizeAssetId(assetId);
-        const transfers = (await getTransfers()).filter(t => normalizeAssetId(t.asset_id) === normalizedId);
-        historyTableBody.innerHTML = '';
-        if (transfers.length === 0) {
-          historyTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีประวัติการโอนย้าย</td></tr>';
-          return;
-        }
-        transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
-        transfers.forEach(t => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${t.Doc_id || '-'}</td>
-            <td>${t.date}</td>
-            <td>${t.from_location || '-'}</td>
-            <td>${t.to_location || '-'}</td>
-            <td>${t.from_owner_name || '-'}</td>
-            <td>${t.to_owner_name || '-'}</td>
-            <td>${t.operator || '-'}</td>
-            <td>${t.note || '-'}</td>
-            <td class="manage-col">
-              ${t.id ? '<button class="print-transfer-btn"><i class="fas fa-print"></i></button>' : ''}
-              ${t.id ? '<button class="delete-transfer-btn"><i class="fas fa-trash"></i> ลบ</button>' : ''}
-            </td>
-          `;
-          if (t.id) {
-            const printBtn = tr.querySelector('.manage-col .print-transfer-btn');
-            printBtn.addEventListener('click', async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              loadTransferToForm(t);
-              setTimeout(() => printCurrentForm(), 50);
-            });
-            const deleteBtn = tr.querySelector('.manage-col .delete-transfer-btn');
-            deleteBtn.addEventListener('click', async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await deleteSingleTransfer(t.id, assetId);
-            });
-          }
-          historyTableBody.appendChild(tr);
-        });
-      }
-      // Global History Render
-      async function renderGlobalHistory() {
-        const transfers = await getTransfers();
-        globalHistoryTableBody.innerHTML = '';
-        if (transfers.length === 0) {
-          globalHistoryTableBody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีประวัติการโอนย้าย</td></tr>';
-          return;
-        }
-        transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
-        transfers.forEach(t => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${t.Doc_id || '-'}</td>
-            <td>${t.date}</td>
-            <td>${t.asset_id || '-'}</td>
-            <td>${t.from_location || '-'}</td>
-            <td>${t.to_location || '-'}</td>
-            <td>${t.from_owner_name || '-'}</td>
-            <td>${t.to_owner_name || '-'}</td>
-            <td>${t.operator || '-'}</td>
-            <td>${t.note || '-'}</td>
-            <td class="manage-col">
-              <button class="print-transfer-btn"><i class="fas fa-print"></i></button>
-              ${t.id ? '<button class="delete-transfer-btn"><i class="fas fa-trash"></i></button>' : ''}
-            </td>
-          `;
-          const printBtn = tr.querySelector('.manage-col .print-transfer-btn');
-          printBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const assetRow = allData.find(r => normalizeAssetId(r['รหัสทรัพย์สิน']) === t.asset_id);
-            if (!assetRow) {
-              alert('ไม่พบข้อมูลทรัพย์สิน');
-              return;
-            }
-            currentAssetRow = assetRow;
-            openTransferModal(assetRow, false);
-            loadTransferToForm(t);
-            setTimeout(() => {
-              printCurrentForm();
-              transferModal.style.display = 'none';
-              currentAssetRow = null;
-            }, 100);
-          });
-          if (t.id) {
-            const deleteBtn = tr.querySelector('.manage-col .delete-transfer-btn');
-            deleteBtn.addEventListener('click', async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await deleteSingleTransfer(t.id, t.asset_id);
-              await renderGlobalHistory();
-            });
-          }
-          globalHistoryTableBody.appendChild(tr);
-        });
-      }
-      // NEW: Render Documents List (Unique by Doc_id)
-      async function renderDocumentsList() {
-        const transfers = await getTransfers();
-        if (transfers.length === 0) {
-          documentsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีเอกสารการโอนย้าย</td></tr>';
-          return;
-        }
-        // Group by Doc_id to get unique docs
-        const docGroups = {};
-        transfers.forEach(t => {
-          const docId = t.Doc_id || 'ไม่มีเลขที่';
-          if (!docGroups[docId]) {
-            docGroups[docId] = {
-              date: t.date,
-              operator: t.operator || '-',
-              transfers: []
-            };
-          }
-          docGroups[docId].transfers.push(t);
-        });
-        const uniqueDocs = Object.keys(docGroups).map(docId => ({
-          Doc_id: docId,
-          date: docGroups[docId].date,
-          operator: docGroups[docId].operator,
-          transfers: docGroups[docId].transfers
-        })).sort((a, b) => new Date(b.date) - new Date(a.date));
-        documentsTableBody.innerHTML = '';
-        uniqueDocs.forEach(doc => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><span class="doc-link" data-doc-id="${doc.Doc_id}">${doc.Doc_id}</span></td>
-            <td>${doc.date}</td>
-            <td>${doc.operator}</td>
-          `;
-          // Add click handler for doc-link
-          const link = tr.querySelector('.doc-link');
-          link.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await loadDocumentToModal(doc);
-          });
-          documentsTableBody.appendChild(tr);
-        });
-      }
-      // NEW: Load document to transfer modal (multi mode if multiple assets)
-      async function loadDocumentToModal(doc) {
-        documentsModal.style.display = 'none';
-        // Collect unique assets from transfers in this doc
-        const assetsInDoc = [...new Set(doc.transfers.map(t => normalizeAssetId(t.asset_id)))];
-        if (assetsInDoc.length === 0) {
-          alert('ไม่พบรายการทรัพย์สินในเอกสารนี้');
-          return;
-        }
-        // Find asset rows from allData
-        const assetRows = assetsInDoc.map(assetId => allData.find(r => normalizeAssetId(r['รหัสทรัพย์สิน']) === assetId)).filter(Boolean);
-        if (assetRows.length === 0) {
-          alert('ไม่พบข้อมูลทรัพย์สินในระบบสำหรับเอกสารนี้');
-          return;
-        }
-        // Set selectedAssets to these rows
-        selectedAssets = assetRows;
-        currentCartOwner = assetRows[0]['ผู้รับผิดชอบ'] || null;
-        // Open multi mode
-        isMultiMode = true;
-        selectedItemsSection.style.display = 'block';
-        singleAssetSection.style.display = 'none';
-        singleFromSection.style.display = 'none';
-        renderSelectedItemsList();
-        // Load form data from first transfer in doc
-        const firstTransfer = doc.transfers[0];
-        document.getElementById('tf_toOwner').value = firstTransfer.to_owner_full || '';
-        document.getElementById('tf_toLocation').value = firstTransfer.to_location || '';
-        document.getElementById('tf_date').value = firstTransfer.date || todayISO();
-        document.getElementById('tf_operator').value = firstTransfer.operator || '';
-        document.getElementById('tf_note').value = firstTransfer.note || '';
-        document.getElementById('tf_docId').value = doc.Doc_id;
-        // Auto-fill to fields
-        const toOwnerFull = document.getElementById('tf_toOwner').value;
-        document.getElementById('tf_toEmpId').value = extractEmpId(toOwnerFull);
-        document.getElementById('tf_toUL').value = findULByOwner(toOwnerFull);
-        document.getElementById('tf_toDept').value = findDeptByOwner(toOwnerFull);
-        fillTransferDatalists();
-        historyBox.style.display = 'none';
-        transferModal.style.display = 'block';
-        validateForm();
-        updateCartUI();
-      }
       // FIXED: saveTransfer - แยกฟังก์ชันบันทึก (รองรับ multi, ส่ง Telegram notification หลัง loop, ไม่มี print)
       async function saveTransfer(e) {
         e.preventDefault();
@@ -2791,12 +2493,6 @@ function doPost(e) {
         printButton.disabled = true;
         printButton.innerHTML = '<i class="fas fa-print" style="opacity:0.5;"></i> กำลังบันทึก...';
         try {
-          // Show loading with SweetAlert
-          Swal.fire({
-            title: 'กำลังบันทึก...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-          });
           // Generate Doc_id ก่อนบันทึก (หนึ่งครั้งต่อ batch)
           const docId = await generateDocId();
           document.getElementById('tf_docId').value = docId; // แสดงใน form
@@ -2882,10 +2578,10 @@ function doPost(e) {
           await sendTelegramNotification(payloads, isMultiMode);
           filterAndRenderTable();
           // FIXED: ไม่ clearCart และไม่ reset mode/display เพื่อให้ข้อมูลยังอยู่สำหรับพิมพ์
-          Swal.fire(`บันทึกการโอนย้ายเรียบร้อย (${payloads.length} รายการ)`, `เลขที่เอกสาร: ${docId}\n(บันทึกใน Google Sheets และ localStorage)\nและส่งแจ้งเตือน Telegram แล้ว\nสามารถกดพิมพ์ได้ทันที จากนั้นกด "ออก" หรือ "ล้างตะกร้า" เมื่อเสร็จ`, 'success');
+          alert(`บันทึกการโอนย้ายเรียบร้อย (${payloads.length} รายการ) เลขที่เอกสาร: ${docId} (บันทึกใน Google Apps Script และ localStorage) และส่งแจ้งเตือน Telegram แล้ว\nสามารถกดพิมพ์ได้ทันที จากนั้นกด "ออก" หรือ "ล้างตะกร้า" เมื่อเสร็จ`);
         } catch (err) {
           console.error('Save error:', err);
-          Swal.fire('เกิดข้อผิดพลาดในการบันทึก', err.message, 'error');
+          alert('เกิดข้อผิดพลาดในการบันทึก: ' + err.message);
         } finally {
           saveButton.innerHTML = originalSaveText;
           saveButton.disabled = false;
@@ -2970,105 +2666,85 @@ function doPost(e) {
         showPrintForm(payloads);
       }
       // ฟังก์ชันแสดงฟอร์มพิมพ์ (รองรับ multi payloads)
-      // FIXED: showPrintForm - แก้ไข template literal escaping และ nested backticks
-function showPrintForm(payloads) {
-  let w = window.open('', '_blank');
-  if (!w || w.closed) {
-    alert('ไม่สามารถเปิดหน้าฟอร์มพิมพ์ได้ (popup อาจถูกบล็อก) กรุณาเปิดใช้งาน popup แล้วลองใหม่');
-    // Fallback: พิมพ์หน้าปัจจุบัน
-    setTimeout(() => window.print(), 100);
-    return;
-  }
-  const isMulti = payloads.length > 1;
-  const dateStr = thaiDateStr(payloads[0].date) || '';
-  const totalItems = payloads.length;
-  const docId = document.getElementById('tf_docId').value || payloads[0].Doc_id || ''; // ใช้ Doc_id จาก form หรือ payload
-
-  const styles = `<style>
-    @page { size: A4 landscape; margin: 0; @bottom-center { content: counter(page) "/" counter(pages); font-size: 10pt; color: #000; } }
-    @page :first { margin-top: 0; @bottom-center { content: counter(page) "/" counter(pages); } }
-    body { font-family: 'Prompt', Tahoma, sans-serif; color: #000; counter-reset: page 1; margin: 0; padding: 12mm; }
-    h1 { font-size: 16pt; text-align: center; margin: 0 0 4mm; }
-    h2 { font-size: 12pt; text-align: center; margin: 0 0 6mm; }
-    .meta { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10pt; }
-    .meta .label { font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; margin: 0; }
-    th, td { border: 1px solid #000; padding: 5px 3px; font-size: 10pt; white-space: normal; word-wrap: break-word; }
-    th { text-align: center; background: #fff; font-weight: bold; }
-    .center { text-align: center; }
-    th:first-child, td:first-child { width: 30px; }
-    th:nth-child(2), td:nth-child(2) { width: 100px; }
-    th:nth-child(3), td:nth-child(3) { width: 250px; }
-    th:nth-child(4), td:nth-child(4) { width: 80px; }
-    th:nth-child(5), td:nth-child(5) { width: 100px; }
-    th:nth-child(6), td:nth-child(6) { width: 180px; }
-    th:nth-child(7), td:nth-child(7) { width: 80px; }
-    th:nth-child(8), td:nth-child(8) { width: 100px; }
-    th:nth-child(9), td:nth-child(9) { width: 180px; }
-    th:last-child, td:last-child { width: 200px; }
-    .sign { margin-top: 12mm; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; font-size: 10pt; }
-    .sign .box { border: 1px solid #000; padding: 6mm; min-height: 38mm; }
-    .line { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
-    .line .lbl { min-width: 120px; }
-    .line .fill { border-bottom: 1px solid #000; flex: 1; height: 16px; padding-bottom: 2px; }
-    .line .info { flex: 1; text-align: center; font-weight: bold; border-bottom: none; padding-top: 2px; }
-    .print-controls { text-align: center; margin: 20px 0; }
-    .print-controls button { padding: 10px 20px; margin: 0 10px; background: #6366f1; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
-    .print-controls button:hover { background: #4f46e5; }
-    @media print {
-      .print-controls { display: none !important; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .sign .box { page-break-inside: avoid; }
-      thead { display: table-header-group; }
-      tfoot { display: table-footer-group; }
-      table { page-break-inside: auto !important; }
-    }
-  </style>`;
-
-  // FIXED: ใช้ concatenation สำหรับ nested template เพื่อหลีกเลี่ยง escaping issue
-  const titleSuffix = isMulti ? ` (${totalItems} รายการ)` : '';
-  const header = `<h1>บริษัท ซีพี รีเทลลิงค์ จำกัด</h1><h2>ใบโอนย้ายทรัพย์สิน${titleSuffix}</h2><div class="meta"><div><span class="label">รายละเอียดครั้งนี้ :</span> ${docId}</div><div><span class="label"></span> ${payloads[0].note || ''}</div><div><span class="label">วันที่ :</span> ${dateStr}</div></div>`;
-
-  let tableRows = '';
-  payloads.forEach((payload, index) => {
-    tableRows += `<tr><td class="center">${index + 1}</td><td class="center">${payload.asset_id || ''}</td><td>${payload.name || ''}</td><td class="center">${payload.from_ul || ''}</td><td class="center">${payload.from_emp_id || ''}</td><td>${payload.from_owner_name || ''}</td><td class="center">${payload.to_ul || ''}</td><td class="center">${payload.to_emp_id || ''}</td><td>${payload.to_owner_name || ''}</td><td>${payload.note || ''}</td></tr>`;
-  });
-
-  const tfoot = `<tfoot><tr><td colspan="10" class="center" style="border-top: 2px solid #000; padding: 8px; font-weight: bold;">วันที่โอน: ${dateStr}</td></tr></tfoot>`;
-
-  const table = `<table><thead><tr><th rowspan="2" style="width:30px">ลำดับ</th><th rowspan="2" style="width:100px">รหัสทรัพย์สิน</th><th rowspan="2" style="width:250px">รายการ</th><th colspan="3">ผู้โอน</th><th colspan="3">ผู้รับ</th><th rowspan="2" style="width:200px">หมายเหตุ</th></tr><tr><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบเดิม</th><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบใหม่</th></tr></thead><tbody>${tableRows}</tbody>${tfoot}</table>`;
-
-  // FIXED: ใช้ concatenation สำหรับ signFrom/signTo เพื่อความปลอดภัย
-  const fromOwnerName = payloads[0].from_owner_name || '';
-  const fromEmpId = payloads[0].from_emp_id || '';
-  const fromDept = payloads[0].from_dept || '';
-  const signFrom = `<div class="box"><div class="center" style="font-weight:bold;margin-bottom:6px;">ผู้โอน</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">${fromOwnerName}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">${fromEmpId}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">${fromDept}</div></div></div>`;
-
-  const toOwnerName = payloads[0].to_owner_name || '';
-  const toEmpId = payloads[0].to_emp_id || '';
-  const toDept = payloads[0].to_dept || '';
-  const signTo = `<div class="box"><div class="center" style="font-weight:bold;margin-bottom:6px;">ผู้รับ</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">${toOwnerName}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">${toEmpId}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">${toDept}</div></div></div>`;
-
-  const sign = `<div class="sign">${signFrom}${signTo}</div>`;
-
-  const printControls = `<div class="print-controls">
-    <button onclick="window.print()">🖨️ พิมพ์ฟอร์ม</button>
-    <button onclick="window.close()">❌ ปิดหน้าต่าง</button>
-  </div>`;
-
-  setTimeout(() => {
-    try {
-      w.document.write(`<html><head><title>พิมพ์ใบโอนย้ายทรัพย์สิน</title>${styles}</head><body>${header}${table}${sign}${printControls}</body></html>`);
-      w.document.close();
-      w.focus();
-      // ไม่ print อัตโนมัติ - ให้ผู้ใช้กดปุ่มพิมพ์เอง
-    } catch (err) {
-      console.error('Print form error:', err);
-      alert('เกิดข้อผิดพลาดในการแสดงฟอร์มพิมพ์: ' + err.message + ' กรุณาลองใหม่');
-      w.close();
-    }
-  }, 100);
-}
+      function showPrintForm(payloads) {
+        let w = window.open('', '_blank');
+        if (!w || w.closed) {
+          alert('ไม่สามารถเปิดหน้าฟอร์มพิมพ์ได้ (popup อาจถูกบล็อก) กรุณาเปิดใช้งาน popup แล้วลองใหม่');
+          // Fallback: พิมพ์หน้าปัจจุบัน
+          setTimeout(() => window.print(), 100);
+          return;
+        }
+        const isMulti = payloads.length > 1;
+        const dateStr = thaiDateStr(payloads[0].date) || '';
+        const totalItems = payloads.length;
+        const docId = document.getElementById('tf_docId').value || payloads[0].Doc_id || ''; // ใช้ Doc_id จาก form หรือ payload
+        const styles = `<style>
+          @page { size: A4 landscape; margin: 0; @bottom-center { content: counter(page) "/" counter(pages); font-size: 10pt; color: #000; } }
+          @page :first { margin-top: 0; @bottom-center { content: counter(page) "/" counter(pages); } }
+          body { font-family: 'Prompt', Tahoma, sans-serif; color: #000; counter-reset: page 1; margin: 0; padding: 12mm; }
+          h1 { font-size: 16pt; text-align: center; margin: 0 0 4mm; }
+          h2 { font-size: 12pt; text-align: center; margin: 0 0 6mm; }
+          .meta { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10pt; }
+          .meta .label { font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin: 0; }
+          th, td { border: 1px solid #000; padding: 5px 3px; font-size: 10pt; white-space: normal; word-wrap: break-word; }
+          th { text-align: center; background: #fff; font-weight: bold; }
+          .center { text-align: center; }
+          th:first-child, td:first-child { width: 30px; }
+          th:nth-child(2), td:nth-child(2) { width: 100px; }
+          th:nth-child(3), td:nth-child(3) { width: 250px; }
+          th:nth-child(4), td:nth-child(4) { width: 80px; }
+          th:nth-child(5), td:nth-child(5) { width: 100px; }
+          th:nth-child(6), td:nth-child(6) { width: 180px; }
+          th:nth-child(7), td:nth-child(7) { width: 80px; }
+          th:nth-child(8), td:nth-child(8) { width: 100px; }
+          th:nth-child(9), td:nth-child(9) { width: 180px; }
+          th:last-child, td:last-child { width: 200px; }
+          .sign { margin-top: 12mm; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; font-size: 10pt; }
+          .sign .box { border: 1px solid #000; padding: 6mm; min-height: 38mm; }
+          .line { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+          .line .lbl { min-width: 120px; }
+          .line .fill { border-bottom: 1px solid #000; flex: 1; height: 16px; padding-bottom: 2px; }
+          .line .info { flex: 1; text-align: center; font-weight: bold; border-bottom: none; padding-top: 2px; }
+          .print-controls { text-align: center; margin: 20px 0; }
+          .print-controls button { padding: 10px 20px; margin: 0 10px; background: #6366f1; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+          .print-controls button:hover { background: #4f46e5; }
+          @media print {
+            .print-controls { display: none !important; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .sign .box { page-break-inside: avoid; }
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            table { page-break-inside: auto !important; }
+          }
+        </style>`;
+        const header = `<h1>บริษัท ซีพี รีเทลลิงค์ จำกัด</h1><h2>ใบโอนย้ายทรัพย์สิน${isMulti ? ` (${totalItems} รายการ)` : ''}</h2><div class="meta"><div><span class="label">รายละเอียดครั้งนี้ :</span> ${docId}</div><div><span class="label"></span> ${payloads[0].note || ''}</div><div><span class="label">วันที่ :</span> ${dateStr}</div></div>`;
+        let tableRows = '';
+        payloads.forEach((payload, index) => {
+          tableRows += `<tr><td class="center">${index + 1}</td><td class="center">${payload.asset_id || ''}</td><td>${payload.name || ''}</td><td class="center">${payload.from_ul || ''}</td><td class="center">${payload.from_emp_id || ''}</td><td>${payload.from_owner_name || ''}</td><td class="center">${payload.to_ul || ''}</td><td class="center">${payload.to_emp_id || ''}</td><td>${payload.to_owner_name || ''}</td><td>${payload.note || ''}</td></tr>`;
+        });
+        const tfoot = `<tfoot><tr><td colspan="10" class="center" style="border-top: 2px solid #000; padding: 8px; font-weight: bold;">วันที่โอน: ${dateStr}</td></tr></tfoot>`;
+        const table = `<table><thead><tr><th rowspan="2" style="width:30px">ลำดับ</th><th rowspan="2" style="width:100px">รหัสทรัพย์สิน</th><th rowspan="2" style="width:250px">รายการ</th><th colspan="3">ผู้โอน</th><th colspan="3">ผู้รับ</th><th rowspan="2" style="width:200px">หมายเหตุ</th></tr><tr><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบเดิม</th><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบใหม่</th></tr></thead><tbody>${tableRows}</tbody>${tfoot}</table>`;
+        const signFrom = `<div class="box"><div class="center" style="font-weight:bold;margin-bottom:6px;">ผู้โอน</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">${payloads[0].from_owner_name || ''}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">${payloads[0].from_emp_id || ''}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">${payloads[0].from_dept || ''}</div></div></div>`;
+        const signTo = `<div class="box"><div class="center" style="font-weight:bold;margin-bottom:6px;">ผู้รับ</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">${payloads[0].to_owner_name || ''}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">${payloads[0].to_emp_id || ''}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">${payloads[0].to_dept || ''}</div></div></div>`;
+        const sign = `<div class="sign">${signFrom}${signTo}</div>`;
+        const printControls = `<div class="print-controls">
+          <button onclick="window.print()">🖨️ พิมพ์ฟอร์ม</button>
+          <button onclick="window.close()">❌ ปิดหน้าต่าง</button>
+        </div>`;
+        setTimeout(() => {
+          try {
+            w.document.write(`<html><head><title>พิมพ์ใบโอนย้ายทรัพย์สิน</title>${styles}</head><body>${header}${table}${sign}${printControls}</body></html>`);
+            w.document.close();
+            w.focus();
+            // ไม่ print อัตโนมัติ - ให้ผู้ใช้กดปุ่มพิมพ์เอง
+          } catch (err) {
+            console.error('Print form error:', err);
+            alert('เกิดข้อผิดพลาดในการแสดงฟอร์มพิมพ์: ' + err.message + ' กรุณาลองใหม่');
+            w.close();
+          }
+        }, 100);
+      }
       // ฟังก์ชันพิมพ์ฟอร์มจากข้อมูลปัจจุบัน (ไม่บันทึก) - สำหรับ single
       function printCurrentForm() {
         if (!validateForm() || isMultiMode) {
@@ -3080,7 +2756,7 @@ function showPrintForm(payloads) {
         // Reconstruct fromOwnerFull จาก form
         const fromEmpId = document.getElementById('tf_fromEmpId').value.trim();
         const fromOwnerName = document.getElementById('tf_fromOwnerName').value.trim();
-        const fromOwnerFull = (fromEmpId && fromOwnerName) ? \`\${fromEmpId} \${fromOwnerName}\`.trim() : (currentAssetRow['ผู้รับผิดชอบ'] || '-');
+        const fromOwnerFull = (fromEmpId && fromOwnerName) ? `${fromEmpId} ${fromOwnerName}`.trim() : (currentAssetRow['ผู้รับผิดชอบ'] || '-');
         // toOwnerFull จาก form
         const toOwnerFull = document.getElementById('tf_toOwner').value.trim();
         const payload = {
@@ -3178,6 +2854,193 @@ function showPrintForm(payloads) {
         const d = new Date(iso);
         const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
         return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
+      }
+      // FIXED: renderHistory - Use t.row_id || t.id for delete (flexible)
+      async function renderHistory(assetId) {
+        const normalizedId = normalizeAssetId(assetId);
+        const transfers = (await getTransfers(normalizedId)).filter(t => normalizeAssetId(t.asset_id) === normalizedId);
+        historyTableBody.innerHTML = '';
+        if (transfers.length === 0) {
+          historyTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีประวัติการโอนย้าย</td></tr>';
+          return;
+        }
+        transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
+        transfers.forEach(t => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${t.Doc_id || '-'}</td>
+            <td>${t.date}</td>
+            <td>${t.from_location || '-'}</td>
+            <td>${t.to_location || '-'}</td>
+            <td>${t.from_owner_name || '-'}</td>
+            <td>${t.to_owner_name || '-'}</td>
+            <td>${t.operator || '-'}</td>
+            <td>${t.note || '-'}</td>
+            <td class="manage-col">
+              ${t.id ? '<button class="print-transfer-btn"><i class="fas fa-print"></i></button>' : ''}
+              ${t.id ? '<button class="delete-transfer-btn"><i class="fas fa-trash"></i> ลบ</button>' : ''}
+            </td>
+          `;
+          if (t.id) {
+            const printBtn = tr.querySelector('.manage-col .print-transfer-btn');
+            printBtn.addEventListener('click', async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              loadTransferToForm(t);
+              setTimeout(() => printCurrentForm(), 50);
+            });
+            const deleteBtn = tr.querySelector('.manage-col .delete-transfer-btn');
+            deleteBtn.addEventListener('click', async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              await deleteSingleTransfer(t.id || t.row_id, assetId);
+            });
+          }
+          historyTableBody.appendChild(tr);
+        });
+      }
+      // Global History Render
+      async function renderGlobalHistory() {
+        const transfers = await getTransfers();
+        globalHistoryTableBody.innerHTML = '';
+        if (transfers.length === 0) {
+          globalHistoryTableBody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีประวัติการโอนย้าย</td></tr>';
+          return;
+        }
+        transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
+        transfers.forEach(t => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${t.Doc_id || '-'}</td>
+            <td>${t.date}</td>
+            <td>${t.asset_id || '-'}</td>
+            <td>${t.from_location || '-'}</td>
+            <td>${t.to_location || '-'}</td>
+            <td>${t.from_owner_name || '-'}</td>
+            <td>${t.to_owner_name || '-'}</td>
+            <td>${t.operator || '-'}</td>
+            <td>${t.note || '-'}</td>
+            <td class="manage-col">
+              <button class="print-transfer-btn"><i class="fas fa-print"></i></button>
+              ${t.id ? '<button class="delete-transfer-btn"><i class="fas fa-trash"></i></button>' : ''}
+            </td>
+          `;
+          const printBtn = tr.querySelector('.manage-col .print-transfer-btn');
+          printBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const assetRow = allData.find(r => normalizeAssetId(r['รหัสทรัพย์สิน']) === t.asset_id);
+            if (!assetRow) {
+              alert('ไม่พบข้อมูลทรัพย์สิน');
+              return;
+            }
+            currentAssetRow = assetRow;
+            openTransferModal(assetRow, false);
+            loadTransferToForm(t);
+            setTimeout(() => {
+              printCurrentForm();
+              transferModal.style.display = 'none';
+              currentAssetRow = null;
+            }, 100);
+          });
+          if (t.id) {
+            const deleteBtn = tr.querySelector('.manage-col .delete-transfer-btn');
+            deleteBtn.addEventListener('click', async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              await deleteSingleTransfer(t.id || t.row_id, t.asset_id);
+              await renderGlobalHistory();
+            });
+          }
+          globalHistoryTableBody.appendChild(tr);
+        });
+      }
+      // NEW: Render Documents List (Unique by Doc_id)
+      async function renderDocumentsList() {
+        const transfers = await getTransfers();
+        if (transfers.length === 0) {
+          documentsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีเอกสารการโอนย้าย</td></tr>';
+          return;
+        }
+        // Group by Doc_id to get unique docs
+        const docGroups = {};
+        transfers.forEach(t => {
+          const docId = t.Doc_id || 'ไม่มีเลขที่';
+          if (!docGroups[docId]) {
+            docGroups[docId] = {
+              date: t.date,
+              operator: t.operator || '-',
+              transfers: []
+            };
+          }
+          docGroups[docId].transfers.push(t);
+        });
+        const uniqueDocs = Object.keys(docGroups).map(docId => ({
+          Doc_id: docId,
+          date: docGroups[docId].date,
+          operator: docGroups[docId].operator,
+          transfers: docGroups[docId].transfers
+        })).sort((a, b) => new Date(b.date) - new Date(a.date));
+        documentsTableBody.innerHTML = '';
+        uniqueDocs.forEach(doc => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="doc-link" data-doc-id="${doc.Doc_id}">${doc.Doc_id}</span></td>
+            <td>${doc.date}</td>
+            <td>${doc.operator}</td>
+          `;
+          // Add click handler for doc-link
+          const link = tr.querySelector('.doc-link');
+          link.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await loadDocumentToModal(doc);
+          });
+          documentsTableBody.appendChild(tr);
+        });
+      }
+      // NEW: Load document to transfer modal (multi mode if multiple assets)
+      async function loadDocumentToModal(doc) {
+        documentsModal.style.display = 'none';
+        // Collect unique assets from transfers in this doc
+        const assetsInDoc = [...new Set(doc.transfers.map(t => normalizeAssetId(t.asset_id)))];
+        if (assetsInDoc.length === 0) {
+          alert('ไม่พบรายการทรัพย์สินในเอกสารนี้');
+          return;
+        }
+        // Find asset rows from allData
+        const assetRows = assetsInDoc.map(assetId => allData.find(r => normalizeAssetId(r['รหัสทรัพย์สิน']) === assetId)).filter(Boolean);
+        if (assetRows.length === 0) {
+          alert('ไม่พบข้อมูลทรัพย์สินในระบบสำหรับเอกสารนี้');
+          return;
+        }
+        // Set selectedAssets to these rows
+        selectedAssets = assetRows;
+        currentCartOwner = assetRows[0]['ผู้รับผิดชอบ'] || null;
+        // Open multi mode
+        isMultiMode = true;
+        selectedItemsSection.style.display = 'block';
+        singleAssetSection.style.display = 'none';
+        singleFromSection.style.display = 'none';
+        renderSelectedItemsList();
+        // Load form data from first transfer in doc
+        const firstTransfer = doc.transfers[0];
+        document.getElementById('tf_toOwner').value = firstTransfer.to_owner_full || '';
+        document.getElementById('tf_toLocation').value = firstTransfer.to_location || '';
+        document.getElementById('tf_date').value = firstTransfer.date || todayISO();
+        document.getElementById('tf_operator').value = firstTransfer.operator || '';
+        document.getElementById('tf_note').value = firstTransfer.note || '';
+        document.getElementById('tf_docId').value = doc.Doc_id;
+        // Auto-fill to fields
+        const toOwnerFull = document.getElementById('tf_toOwner').value;
+        document.getElementById('tf_toEmpId').value = extractEmpId(toOwnerFull);
+        document.getElementById('tf_toUL').value = findULByOwner(toOwnerFull);
+        document.getElementById('tf_toDept').value = findDeptByOwner(toOwnerFull);
+        fillTransferDatalists();
+        historyBox.style.display = 'none';
+        transferModal.style.display = 'block';
+        validateForm();
+        updateCartUI();
       }
       // Load Data
       fetch(url)
