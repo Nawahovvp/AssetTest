@@ -2174,7 +2174,6 @@
   const action = e.parameter.action || 'get';
   const callback = e.parameter.callback;
   let response = { status: 'error', data: 'Invalid action' };
-
   try {
     switch (action) {
       case 'getTransfers':
@@ -2230,11 +2229,9 @@
   } catch (error) {
     response = { status: 'error', data: error.toString() };
   }
-
   const jsonpResponse = \`\${callback}(${JSON.stringify(response)}, '\${response.status}');\`;
   return ContentService.createTextOutput(jsonpResponse).setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
-
 function doPost(e) {
   return doGet(e); // Support POST as GET for JSONP
 }`;
