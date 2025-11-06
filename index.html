@@ -6,6 +6,8 @@
   <title>รายงานทรัพย์สิน คลังสินค้า Sparepart</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     :root {
       --primary-color: #6366f1; /* สีม่วงน้ำเงินสดใสแบบ Canva */
@@ -422,6 +424,11 @@
       max-width: 400px;
       padding: 24px;
     }
+    #gsCodeModal .modal-content {
+      max-width: 900px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
     @keyframes zoomInRotate {
       from { opacity: 0; transform: scale(0.8) rotate(-5deg); }
       to { opacity: 1; transform: scale(1) rotate(0deg); }
@@ -451,6 +458,9 @@
       font-size: 20px;
       margin-bottom: 16px;
       padding-bottom: 8px;
+    }
+    #gsCodeModal .modal-content h2 {
+      font-size: 18px;
     }
     .close {
       color: #94a3b8;
@@ -834,6 +844,18 @@
       border-left: 4px solid var(--danger-color);
       background-color: #fef2f2;
     }
+    /* NEW: CSS for GS Code Modal */
+    #gsCodeModal .modal-content pre {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      border: 1px solid #e2e8f0;
+    }
     @media (max-width: 768px) {
       .filter-row {
         grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
@@ -901,6 +923,12 @@
         padding: 16px;
         margin: 1% auto;
         width: 99%;
+      }
+      #gsCodeModal .modal-content {
+        padding: 12px;
+        margin: 1% auto;
+        width: 99%;
+        max-height: 90vh;
       }
       .modal-buttons {
         justify-content: center;
@@ -1075,6 +1103,14 @@
       transform: translateY(-2px);
       box-shadow: var(--shadow-lg);
     }
+    /* NEW: Button for GS Code */
+    .gs-code-button {
+      background: linear-gradient(135deg, var(--info-color), #0891b2) !important;
+      margin-left: 10px;
+    }
+    .gs-code-button:hover {
+      background: linear-gradient(135deg, #0891b2, #0e7490) !important;
+    }
   </style>
 </head>
 <body>
@@ -1102,6 +1138,7 @@
       <button id="reportButton" class="action-button print-button"><i class="fas fa-print"></i> รายงาน</button>
       <button id="historyButton" class="action-button history-button"><i class="fas fa-history"></i> ประวัติ</button>
       <button id="documentsButton" class="action-button documents-button"><i class="fas fa-file-alt"></i> เอกสารทั้งหมด</button>
+      <button id="gsCodeButton" class="action-button gs-code-button"><i class="fas fa-code"></i> ดู Code GS</button>
       <button id="cartButton" class="action-button cart-button" disabled><i class="fas fa-shopping-cart"></i> (0)</button>
       <button id="clearCartButton" class="action-button" style="background:linear-gradient(135deg,var(--danger-color),#dc2626);" disabled><i class="fas fa-trash"></i> ล้างตะกร้า</button>
       <div id="userInfo"><i class="fas fa-user"></i> ยินดีต้อนรับ: <span id="loggedUserName"></span> <button id="logoutButton"><i class="fas fa-sign-out-alt"></i> Logout</button></div>
@@ -1284,7 +1321,7 @@
         </table>
       </div>
       <div style="margin-top:20px;font-size:13px;color:var(--secondary-color);padding:16px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:12px;border-left:4px solid var(--primary-color);box-shadow:var(--shadow-sm);">
-        <i class="fas fa-info-circle"></i> ระบบบันทึกข้อมูลใน localStorage ของเบราว์เซอร์ และส่งไป Google Sheets "transfers" อัตโนมัติ
+        <i class="fas fa-info-circle"></i> ระบบบันทึกข้อมูลใน Google Sheets ผ่าน Apps Script (JSONP) และ localStorage (backup)
       </div>
     </div>
   </div>
@@ -1342,6 +1379,14 @@
       </div>
     </div>
   </div>
+  <!-- GS Code Modal -->
+  <div id="gsCodeModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeGsCodeModal">&times;</span>
+      <h2><i class="fas fa-code"></i> Google Apps Script Code</h2>
+      <pre id="gsCodeContent"></pre>
+    </div>
+  </div>
   <!-- Login Modal -->
   <div id="loginModal" class="modal">
     <div class="modal-content">
@@ -1365,11 +1410,19 @@
     </div>
   </div>
   <script>
-    // Google Sheets Config - ใช้ Google Apps Script Webhook
-    const gsScriptUrl = 'https://script.google.com/macros/s/AKfycbyR8j2qPb-jqkJHo1VNrhzDSqZEpksIOLKfAwe5VtedwKBwxrtKZOxtaAmswNTf-z7M/exec';
+    // Apps Script URL for JSONP
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby9Jqr5n1ddMqPNER2AibnZbuTB4HjUvL0OPdT8CixI5RrBxsi-EoAvWaBGREmPMIvT/exec';
     // Telegram Config - แก้ไข chat_id ให้เป็นค่าจาก Appsheet (สำหรับ Group Chat ต้องมีลบหน้า)
     const telegramBotToken = '7787184267:AAGdxqbkQ6Xfb_G1mm_220tPNdvogGSNog4';
     const telegramChatId = '-4562197204'; // แก้ไขจาก '1002271944718' เป็น '-1002271944718' สำหรับ Group Chat
+    // Global callback function for JSONP
+    window.handleAppsScriptResponse = function(data, status) {
+      // Handle response based on pending request (use a global pendingRequest var or queue)
+      if (window.pendingRequest && window.pendingRequest.resolve) {
+        window.pendingRequest.resolve({ data, status });
+        window.pendingRequest = null;
+      }
+    };
     // DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function() {
       const sheetID = '1caJemfomWLXEeqAlKFNMzGrT6divjSt5QZYeIjuTg58';
@@ -1407,6 +1460,7 @@
       const reportButton = document.getElementById('reportButton');
       const historyButton = document.getElementById('historyButton');
       const documentsButton = document.getElementById('documentsButton');
+      const gsCodeButton = document.getElementById('gsCodeButton');
       const cartButton = document.getElementById('cartButton');
       const clearCartButton = document.getElementById('clearCartButton');
       const globalHistoryModal = document.getElementById('globalHistoryModal');
@@ -1438,6 +1492,9 @@
       const rememberCheckbox = document.getElementById('rememberCheckbox');
       const loggedUserName = document.getElementById('loggedUserName');
       const logoutButton = document.getElementById('logoutButton');
+      const gsCodeModal = document.getElementById('gsCodeModal');
+      const closeGsCodeModal = document.getElementById('closeGsCodeModal');
+      const gsCodeContent = document.getElementById('gsCodeContent');
       let allData = [];
       let selectedAssets = []; // ตะกร้า
       let currentCartOwner = null; // เพิ่ม: เก็บผู้รับผิดชอบสำหรับตะกร้า
@@ -1449,6 +1506,31 @@
       let isMultiMode = false; // ตรวจสอบโหมด multi หรือ single
       let userData = []; // ข้อมูลผู้ใช้จาก Google Sheet
       let loggedUser = null; // ข้อมูลผู้ใช้ที่ล็อกอิน
+      let pendingRequest = null; // สำหรับ JSONP callback
+      // ฟังก์ชัน JSONP request
+      function jsonpRequest(params) {
+        return new Promise((resolve, reject) => {
+          const callbackName = 'handleAppsScriptResponse_' + Date.now();
+          window[callbackName] = function(data, status) {
+            delete window[callbackName];
+            if (status === 'success') {
+              resolve(data);
+            } else {
+              reject(new Error(data || 'Request failed'));
+            }
+          };
+          const script = document.createElement('script');
+          const queryParams = new URLSearchParams(params);
+          queryParams.append('callback', callbackName);
+          script.src = appsScriptUrl + '?' + queryParams.toString();
+          script.onerror = () => {
+            delete window[callbackName];
+            reject(new Error('JSONP request failed'));
+          };
+          document.head.appendChild(script);
+          pendingRequest = { resolve: window[callbackName] };
+        });
+      }
       // ฟังก์ชันโหลดข้อมูลผู้ใช้
       async function loadUserData() {
         try {
@@ -1491,9 +1573,9 @@
             sessionStorage.setItem('userSession', JSON.stringify(user));
           }
           showLoggedIn();
-          alert('เข้าสู่ระบบสำเร็จ');
+          Swal.fire('เข้าสู่ระบบสำเร็จ!', '', 'success');
         } else {
-          alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+          Swal.fire('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', '', 'error');
         }
       }
       // ฟังก์ชันล็อกเอาท์
@@ -2086,6 +2168,79 @@
         documentsModal.style.display = 'block';
         await renderDocumentsList();
       });
+      // NEW: GS Code Button
+      gsCodeButton.addEventListener('click', () => {
+        gsCodeContent.textContent = `// Google Apps Script Code for Handling JSONP Requests\nfunction doGet(e) {
+  const action = e.parameter.action || 'get';
+  const callback = e.parameter.callback;
+  let response = { status: 'error', data: 'Invalid action' };
+
+  try {
+    switch (action) {
+      case 'getTransfers':
+        // Fetch from Google Sheet (assume sheet name 'Transfers')
+        const ss = SpreadsheetApp.openById('YOUR_SHEET_ID'); // Replace with your Transfers sheet ID
+        const sheet = ss.getSheetByName('Transfers');
+        const data = sheet.getDataRange().getValues();
+        response = { status: 'success', data: data.slice(1) }; // Skip header
+        break;
+      case 'insertTransfer':
+        const payload = JSON.parse(e.parameter.payload || '{}');
+        // Append to sheet
+        const ssInsert = SpreadsheetApp.openById('YOUR_SHEET_ID');
+        const sheetInsert = ssInsert.getSheetByName('Transfers');
+        sheetInsert.appendRow(Object.values(payload));
+        response = { status: 'success', data: payload };
+        break;
+      case 'deleteTransfer':
+        const transferId = e.parameter.id;
+        // Delete row by ID (assume column A is ID)
+        const ssDelete = SpreadsheetApp.openById('YOUR_SHEET_ID');
+        const sheetDelete = ssDelete.getSheetByName('Transfers');
+        const dataDelete = sheetDelete.getDataRange().getValues();
+        for (let i = 1; i < dataDelete.length; i++) {
+          if (dataDelete[i][0] == transferId) {
+            sheetDelete.deleteRow(i + 1);
+            response = { status: 'success', data: 'Deleted' };
+            break;
+          }
+        }
+        break;
+      case 'generateDocId':
+        // Logic to generate Doc_id (e.g., max seq for year)
+        const currentYear = new Date().getFullYear();
+        const ssDoc = SpreadsheetApp.openById('YOUR_SHEET_ID');
+        const sheetDoc = ssDoc.getSheetByName('Transfers');
+        const dataDoc = sheetDoc.getDataRange().getValues();
+        let maxSeq = 0;
+        dataDoc.slice(1).forEach(row => {
+          if (row[0] && row[0].toString().match(/^\d{3}\/\d{4}$/)) { // Assume Doc_id in col A
+            const match = row[0].toString().match(/^(\d{3})\/\d{4}$/);
+            if (match && parseInt(match[2]) === currentYear) {
+              maxSeq = Math.max(maxSeq, parseInt(match[1]));
+            }
+          }
+        });
+        const newSeq = (maxSeq + 1).toString().padStart(3, '0');
+        response = { status: 'success', data: \`\${newSeq}/\${currentYear}\` };
+        break;
+      default:
+        response = { status: 'error', data: 'Unknown action' };
+    }
+  } catch (error) {
+    response = { status: 'error', data: error.toString() };
+  }
+
+  const jsonpResponse = \`\${callback}(${JSON.stringify(response)}, '\${response.status}');\`;
+  return ContentService.createTextOutput(jsonpResponse).setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+function doPost(e) {
+  return doGet(e); // Support POST as GET for JSONP
+}`;
+        gsCodeModal.style.display = 'block';
+      });
+      closeGsCodeModal.onclick = () => { gsCodeModal.style.display = 'none'; };
       cartButton.addEventListener('click', openCartModal);
       clearCartButton.addEventListener('click', clearCart);
       closeGlobalHistoryModal.onclick = () => { globalHistoryModal.style.display = 'none'; };
@@ -2197,6 +2352,7 @@
         if (e.target === pickerModal) { pickerModal.style.display = 'none'; }
         if (e.target === globalHistoryModal) { globalHistoryModal.style.display = 'none'; }
         if (e.target === documentsModal) { documentsModal.style.display = 'none'; }
+        if (e.target === gsCodeModal) { gsCodeModal.style.display = 'none'; }
         if (e.target === loginModal && !loggedUser) { alert('กรุณาเข้าสู่ระบบก่อน'); } // ป้องกันปิด login
       });
       document.getElementById('tf_toOwner').addEventListener('input', () => {
@@ -2271,137 +2427,65 @@
       async function deleteSingleTransfer(transferId, assetId) {
         if (!confirm('คุณแน่ใจหรือไม่ที่จะลบรายการโอนย้ายนี้?')) return;
         try {
-          // ลบจาก Google Sheets ผ่าน Apps Script
-          const response = await fetch(gsScriptUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete', id: transferId })
+          Swal.fire({
+            title: 'กำลังลบ...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
           });
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          const result = await response.json();
-          if (!result.success) throw new Error(result.message || 'Delete failed');
+          // ลบจาก Apps Script via JSONP
+          const params = {
+            action: 'deleteTransfer',
+            id: transferId
+          };
+          const response = await jsonpRequest(params);
+          if (response.status !== 'success') throw new Error(response.data);
           // ลบจาก localStorage
           let localList = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
           localList = localList.filter(t => t.id !== transferId);
           localStorage.setItem('assetTransfers', JSON.stringify(localList));
           // Re-render history ด้วย normalized assetId
           await renderHistory(normalizeAssetId(assetId));
-          alert('ลบรายการเรียบร้อย');
+          Swal.fire('ลบรายการเรียบร้อย', '', 'success');
         } catch (err) {
           console.error('Delete error:', err);
-          alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+          Swal.fire('เกิดข้อผิดพลาดในการลบ', err.message, 'error');
         }
       }
-      // FIXED: getTransfers - Use POST with action 'getAll'
-async function getTransfers() {
-  try {
-    // ดึงจาก Google Sheets ผ่าน Apps Script (POST)
-    const response = await fetch(gsScriptUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'getAll' })
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const transfers = await response.json();
-    if (!transfers.success) throw new Error(transfers.message || 'Fetch failed');
-    // Sync with localStorage if Sheets empty but local has data
-    const localTransfers = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
-    if (transfers.data.length === 0 && localTransfers.length > 0) {
-      // Sync local to Sheets
-      for (const t of localTransfers) {
-        const normalizedT = preparePayloadForSheets({ ...t, asset_id: normalizeAssetId(t.asset_id) });
-        const syncResponse = await fetch(gsScriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'insert', data: normalizedT })
-        });
-        if (!syncResponse.ok) {
-          console.error('Sync error:', await syncResponse.text());
-          continue;
-        }
-        const inserted = await syncResponse.json();
-        if (inserted.success && inserted.data && inserted.data.id) {
-          const index = localTransfers.findIndex(lt => lt.asset_id === t.asset_id && lt.date === t.date);
-          if (index !== -1) localTransfers[index].id = inserted.data.id;
+      // FIXED: getTransfers - ใช้ JSONP ไป Apps Script
+      async function getTransfers() {
+        try {
+          const params = {
+            action: 'getTransfers'
+          };
+          const response = await jsonpRequest(params);
+          if (response.status !== 'success') throw new Error(response.data);
+          const transfers = response.data || [];
+          // Sync กับ localStorage ถ้า Apps Script ว่างแต่ local มี
+          const localTransfers = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
+          if (transfers.length === 0 && localTransfers.length > 0) {
+            // Sync local to Apps Script
+            for (const t of localTransfers) {
+              const payloadStr = JSON.stringify(t);
+              const syncParams = {
+                action: 'insertTransfer',
+                payload: payloadStr
+              };
+              try {
+                await jsonpRequest(syncParams);
+              } catch (syncErr) {
+                console.error('Sync error:', syncErr);
+              }
+            }
+            localStorage.removeItem('assetTransfers'); // ลบ local หลัง sync
+            return await getTransfers(); // Reload
+          }
+          return transfers;
+        } catch (err) {
+          console.error('Apps Script error, fallback to localStorage:', err);
+          return JSON.parse(localStorage.getItem('assetTransfers') || '[]');
         }
       }
-      localStorage.setItem('assetTransfers', JSON.stringify(localTransfers));
-      // Remove old local after sync
-      localStorage.removeItem('assetTransfers');
-      return await getTransfers(); // Reload
-    }
-    return transfers.data || [];
-  } catch (err) {
-    console.error('Google Sheets error, fallback to localStorage:', err);
-    return JSON.parse(localStorage.getItem('assetTransfers') || '[]');
-  }
-}
-
-// FIXED: generateDocId - Use POST with action 'query'
-async function generateDocId() {
-  try {
-    const currentYear = new Date().getFullYear();
-    // Query max Doc_id in year via POST
-    const response = await fetch(gsScriptUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'query',
-        filter: {
-          date_gte: `${currentYear}-01-01`,
-          date_lte: `${currentYear}-12-31`
-        },
-        order: 'Doc_id desc',
-        limit: 1
-      })
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const result = await response.json();
-    if (!result.success || !result.data || result.data.length === 0) {
-      return `001/${currentYear}`;
-    }
-    const maxDoc = result.data[0];
-    const match = maxDoc.Doc_id.match(/^(\d{3})\/\d{4}$/);
-    if (match) {
-      const seq = parseInt(match[1]) + 1;
-      return `${seq.toString().padStart(3, '0')}/${currentYear}`;
-    }
-    return `001/${currentYear}`;
-  } catch (err) {
-    console.error('Generate Doc_id error:', err);
-    // Fallback to localStorage
-    const localTransfers = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
-    const currentYear = new Date().getFullYear();
-    const yearDocs = localTransfers
-      .filter(t => {
-        const tDate = new Date(t.date);
-        return tDate.getFullYear() === currentYear && t.Doc_id;
-      })
-      .map(t => t.Doc_id.match(/^(\d{3})\/\d{4}$/))
-      .filter(match => match)
-      .map(match => parseInt(match[1]))
-      .sort((a, b) => b - a);
-    const maxSeq = yearDocs.length > 0 ? yearDocs[0] : 0;
-    const seq = maxSeq + 1;
-    return `${seq.toString().padStart(3, '0')}/${currentYear}`;
-  }
-}
-
-// FIXED: preparePayloadForSheets - Include all fields (add from_dept/to_dept if your sheet has them)
-function preparePayloadForSheets(payload) {
-  // All fields from your sheet (A-T)
-  const allowedFields = [
-    'id', 'asset_id', 'name', 'ul', 'from_location', 'from_owner_full', 'from_owner_name', 'from_emp_id', 'from_ul',
-    'to_location', 'to_owner_full', 'to_owner_name', 'to_emp_id', 'to_ul', 'date', 'operator', 'note', 'status', 'created_at', 'Doc_id'
-    // Add 'from_dept', 'to_dept' if your sheet has extra columns
-  ];
-  const sheetsPayload = {};
-  allowedFields.forEach(field => {
-    if (payload[field] !== undefined) sheetsPayload[field] = payload[field];
-  });
-  console.log('Prepared payload for Google Sheets:', sheetsPayload);
-  return sheetsPayload;
-}
+      // FIXED: setTransfers - ใช้ JSONP ไป Apps Script
       async function setTransfers(newPayload) {
         // Normalize asset_id ก่อนบันทึก
         newPayload.asset_id = normalizeAssetId(newPayload.asset_id);
@@ -2409,29 +2493,19 @@ function preparePayloadForSheets(payload) {
         const localList = JSON.parse(localStorage.getItem('assetTransfers') || '[]');
         localList.push(newPayload);
         localStorage.setItem('assetTransfers', JSON.stringify(localList));
-        // ส่งไป Google Sheets - เตรียม payload ก่อน
+        // ส่งไป Apps Script - JSONP
         try {
-          const sheetsPayload = preparePayloadForSheets(newPayload);
-          const response = await fetch(gsScriptUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'insert', data: sheetsPayload })
-          });
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          const result = await response.json();
-          if (!result.success) throw new Error(result.message || 'Insert failed');
-          // ถ้าสำเร็จ, อัปเดต local ด้วย id
-          if (result.data && result.data.id) {
-            const index = localList.findIndex(t => t.asset_id === newPayload.asset_id && t.date === newPayload.date);
-            if (index !== -1) {
-              localList[index].id = result.data.id;
-              localStorage.setItem('assetTransfers', JSON.stringify(localList));
-            }
-          }
-          console.log('Saved to Google Sheets successfully with ID:', result.data?.id);
+          const payloadStr = JSON.stringify(newPayload);
+          const params = {
+            action: 'insertTransfer',
+            payload: payloadStr
+          };
+          const response = await jsonpRequest(params);
+          if (response.status !== 'success') throw new Error(response.data);
+          console.log('Saved to Google Sheets successfully');
         } catch (err) {
-          console.error('Google Sheets setTransfers error (data saved to local only):', err);
-          alert('บันทึกสำเร็จในเครื่อง แต่ล้มเหลวในการ sync ไป Google Sheets: ' + err.message + '\nตรวจสอบคอลัมน์ใน Sheet "transfers"');
+          console.error('Apps Script setTransfers error (data saved to local only):', err);
+          throw err; // Rethrow for caller
         }
       }
       // FIXED: Telegram Notification Function - ปรับให้รับ payloads array เสมอ (สำหรับ multi/single) และส่ง notification เดียว
@@ -2489,36 +2563,16 @@ function preparePayloadForSheets(payload) {
           }
         }
       }
-      // FIXED: Generate เลขที่เอกสาร unique ต่อ Doc_id (ไม่สนจำนวน assets ใน doc) - ปรับใช้ Google Sheets
+      // FIXED: Generate เลขที่เอกสาร unique ต่อ Doc_id (ไม่สนจำนวน assets ใน doc)
       async function generateDocId() {
         try {
           const currentYear = new Date().getFullYear();
-          // Query max Doc_id ในปีนั้นจาก Google Sheets
-          const response = await fetch(gsScriptUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              action: 'query', 
-              filter: { 
-                date_gte: `${currentYear}-01-01`, 
-                date_lte: `${currentYear}-12-31` 
-              },
-              order: 'Doc_id desc',
-              limit: 1
-            })
-          });
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          const result = await response.json();
-          if (!result.success || !result.data || result.data.length === 0) {
-            return `001/${currentYear}`;
-          }
-          const maxDoc = result.data[0];
-          const match = maxDoc.Doc_id.match(/^(\d{3})\/\d{4}$/);
-          if (match) {
-            const seq = parseInt(match[1]) + 1;
-            return `${seq.toString().padStart(3, '0')}/${currentYear}`;
-          }
-          return `001/${currentYear}`;
+          const params = {
+            action: 'generateDocId'
+          };
+          const response = await jsonpRequest(params);
+          if (response.status !== 'success') throw new Error(response.data);
+          return response.data || `001/${currentYear}`;
         } catch (err) {
           console.error('Generate Doc_id error:', err);
           // Fallback: ใช้ localStorage สำหรับ max seq
@@ -2740,6 +2794,12 @@ function preparePayloadForSheets(payload) {
         printButton.disabled = true;
         printButton.innerHTML = '<i class="fas fa-print" style="opacity:0.5;"></i> กำลังบันทึก...';
         try {
+          // Show loading with SweetAlert
+          Swal.fire({
+            title: 'กำลังบันทึก...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+          });
           // Generate Doc_id ก่อนบันทึก (หนึ่งครั้งต่อ batch)
           const docId = await generateDocId();
           document.getElementById('tf_docId').value = docId; // แสดงใน form
@@ -2825,10 +2885,10 @@ function preparePayloadForSheets(payload) {
           await sendTelegramNotification(payloads, isMultiMode);
           filterAndRenderTable();
           // FIXED: ไม่ clearCart และไม่ reset mode/display เพื่อให้ข้อมูลยังอยู่สำหรับพิมพ์
-          alert(`บันทึกการโอนย้ายเรียบร้อย (${payloads.length} รายการ) เลขที่เอกสาร: ${docId} (บันทึกใน Google Sheets และ localStorage) และส่งแจ้งเตือน Telegram แล้ว\nสามารถกดพิมพ์ได้ทันที จากนั้นกด "ออก" หรือ "ล้างตะกร้า" เมื่อเสร็จ`);
+          Swal.fire(`บันทึกการโอนย้ายเรียบร้อย (${payloads.length} รายการ)`, `เลขที่เอกสาร: ${docId}\n(บันทึกใน Google Sheets และ localStorage)\nและส่งแจ้งเตือน Telegram แล้ว\nสามารถกดพิมพ์ได้ทันที จากนั้นกด "ออก" หรือ "ล้างตะกร้า" เมื่อเสร็จ`, 'success');
         } catch (err) {
           console.error('Save error:', err);
-          alert('เกิดข้อผิดพลาดในการบันทึก: ' + err.message);
+          Swal.fire('เกิดข้อผิดพลาดในการบันทึก', err.message, 'error');
         } finally {
           saveButton.innerHTML = originalSaveText;
           saveButton.disabled = false;
@@ -2928,7 +2988,7 @@ function preparePayloadForSheets(payload) {
     const styles = `<style>
       @page { size: A4 landscape; margin: 0; @bottom-center { content: counter(page) "/" counter(pages); font-size: 10pt; color: #000; } }
       @page :first { margin-top: 0; @bottom-center { content: counter(page) "/" counter(pages); } }
-      body { font-family: 'Prompt', Tahoma, sans-serif; color: #000; counter-reset: page 1; margin: 0; padding: 12mm; display: flex; flex-direction: column; }
+      body { font-family: 'Prompt', Tahoma, sans-serif; color: #000; counter-reset: page 1; margin: 0; padding: 12mm; }
       h1 { font-size: 16pt; text-align: center; margin: 0 0 4mm; }
       h2 { font-size: 12pt; text-align: center; margin: 0 0 6mm; }
       .meta { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10pt; }
@@ -2947,16 +3007,15 @@ function preparePayloadForSheets(payload) {
       th:nth-child(8), td:nth-child(8) { width: 100px; }
       th:nth-child(9), td:nth-child(9) { width: 180px; }
       th:last-child, td:last-child { width: 200px; }
-      .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; margin-top: 0; }
-      .sign .box { border: 1px solid #000; padding: 3mm; min-height: 20mm; }
-      .line { display: flex; gap: 3px; align-items: center; margin-top: 3px; }
-      .line .lbl { min-width: 80px; font-size: 9pt; }
-      .line .fill { border-bottom: 1px solid #000; flex: 1; height: 12px; padding-bottom: 1px; }
-      .line .info { flex: 1; text-align: center; font-weight: bold; border-bottom: none; padding-top: 1px; font-size: 9pt; }
+      .sign { margin-top: 12mm; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; font-size: 10pt; }
+      .sign .box { border: 1px solid #000; padding: 6mm; min-height: 38mm; }
+      .line { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+      .line .lbl { min-width: 120px; }
+      .line .fill { border-bottom: 1px solid #000; flex: 1; height: 16px; padding-bottom: 2px; }
+      .line .info { flex: 1; text-align: center; font-weight: bold; border-bottom: none; padding-top: 2px; }
       .print-controls { text-align: center; margin: 20px 0; }
       .print-controls button { padding: 10px 20px; margin: 0 10px; background: #6366f1; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
       .print-controls button:hover { background: #4f46e5; }
-      .spacer { flex-grow: 1; }
       @media print {
         .print-controls { display: none !important; }
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -2966,24 +3025,23 @@ function preparePayloadForSheets(payload) {
         table { page-break-inside: auto !important; }
       }
     </style>`;
-        const header = `<h1>บริษัท ซีพี รีเทลลิงค์ จำกัด</h1><h2>ใบโอนย้ายทรัพย์สิน${isMulti ? ` (${totalItems} รายการ)` : ''}</h2><div class="meta"><div><span class="label">รายละเอียดครั้งนี้ :</span> ${docId}</div><div><span class="label"></span> ${payloads[0].note || ''}</div><div><span class="label">วันที่ :</span> ${dateStr}</div></div>`;
+        const header = `<h1>บริษัท ซีพี รีเทลลิงค์ จำกัด</h1><h2>ใบโอนย้ายทรัพย์สิน${isMulti ? \` (\${totalItems} รายการ)\` : ''}</h2><div class="meta"><div><span class="label">รายละเอียดครั้งนี้ :</span> \${docId}</div><div><span class="label"></span> \${payloads[0].note || ''}</div><div><span class="label">วันที่ :</span> \${dateStr}</div></div>`;
         let tableRows = '';
         payloads.forEach((payload, index) => {
-          tableRows += `<tr><td class="center">${index + 1}</td><td class="center">${payload.asset_id || ''}</td><td>${payload.name || ''}</td><td class="center">${payload.from_ul || ''}</td><td class="center">${payload.from_emp_id || ''}</td><td>${payload.from_owner_name || ''}</td><td class="center">${payload.to_ul || ''}</td><td class="center">${payload.to_emp_id || ''}</td><td>${payload.to_owner_name || ''}</td><td>${payload.note || ''}</td></tr>`;
+          tableRows += \`<tr><td class="center">\${index + 1}</td><td class="center">\${payload.asset_id || ''}</td><td>\${payload.name || ''}</td><td class="center">\${payload.from_ul || ''}</td><td class="center">\${payload.from_emp_id || ''}</td><td>\${payload.from_owner_name || ''}</td><td class="center">\${payload.to_ul || ''}</td><td class="center">\${payload.to_emp_id || ''}</td><td>\${payload.to_owner_name || ''}</td><td>\${payload.note || ''}</td></tr>\`;
         });
-        const tfoot = `<tfoot><tr><td colspan="10" class="center" style="border-top: 2px solid #000; padding: 8px; font-weight: bold;">วันที่โอน: ${dateStr}</td></tr></tfoot>`;
-        const table = `<table><thead><tr><th rowspan="2" style="width:30px">ลำดับ</th><th rowspan="2" style="width:100px">รหัสทรัพย์สิน</th><th rowspan="2" style="width:250px">รายการ</th><th colspan="3">ผู้โอน</th><th colspan="3">ผู้รับ</th><th rowspan="2" style="width:200px">หมายเหตุ</th></tr><tr><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบเดิม</th><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบใหม่</th></tr></thead><tbody>${tableRows}</tbody>${tfoot}</table>`;
-        const signFrom = `<div class="box"><div class="center" style="font-weight:bold;margin-bottom:3px;">ผู้โอน</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">${payloads[0].from_owner_name || ''}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">${payloads[0].from_emp_id || ''}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">${payloads[0].from_dept || ''}</div></div></div>`;
-        const signTo = `<div class="box"><div class="center" style="font-weight:bold;margin-bottom:3px;">ผู้รับ</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">${payloads[0].to_owner_name || ''}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">${payloads[0].to_emp_id || ''}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">${payloads[0].to_dept || ''}</div></div></div>`;
-        const sign = `<div class="sign">${signFrom}${signTo}</div>`;
-        const printControls = `<div class="print-controls">
+        const tfoot = \`<tfoot><tr><td colspan="10" class="center" style="border-top: 2px solid #000; padding: 8px; font-weight: bold;">วันที่โอน: \${dateStr}</td></tr></tfoot>\`;
+        const table = \`<table><thead><tr><th rowspan="2" style="width:30px">ลำดับ</th><th rowspan="2" style="width:100px">รหัสทรัพย์สิน</th><th rowspan="2" style="width:250px">รายการ</th><th colspan="3">ผู้โอน</th><th colspan="3">ผู้รับ</th><th rowspan="2" style="width:200px">หมายเหตุ</th></tr><tr><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบเดิม</th><th style="width:80px">UL</th><th style="width:100px">รหัสพนักงาน</th><th style="width:180px">ชื่อผู้รับผิดชอบใหม่</th></tr></thead><tbody>\${tableRows}</tbody>\${tfoot}</table>\`;
+        const signFrom = \`<div class="box"><div class="center" style="font-weight:bold;margin-bottom:6px;">ผู้โอน</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">\${payloads[0].from_owner_name || ''}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">\${payloads[0].from_emp_id || ''}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">\${payloads[0].from_dept || ''}</div></div></div>\`;
+        const signTo = \`<div class="box"><div class="center" style="font-weight:bold;margin-bottom:6px;">ผู้รับ</div><div class="line"><div class="lbl">ลายเซ็นต์</div><div class="fill"></div></div><div class="line"><div class="lbl">ชื่อตัวบรรจง</div><div class="info">\${payloads[0].to_owner_name || ''}</div></div><div class="line"><div class="lbl">รหัสพนักงาน</div><div class="info">\${payloads[0].to_emp_id || ''}</div></div><div class="line"><div class="lbl">หน่วยงาน</div><div class="info">\${payloads[0].to_dept || ''}</div></div></div>\`;
+        const sign = \`<div class="sign">\${signFrom}\${signTo}</div>\`;
+        const printControls = \`<div class="print-controls">
           <button onclick="window.print()">🖨️ พิมพ์ฟอร์ม</button>
           <button onclick="window.close()">❌ ปิดหน้าต่าง</button>
-        </div>`;
-        const spacer = `<div class="spacer"></div>`;
+        </div>\`;
         setTimeout(() => {
           try {
-            w.document.write(`<html><head><title>พิมพ์ใบโอนย้ายทรัพย์สิน</title>${styles}</head><body>${header}${table}${spacer}${sign}${printControls}</body></html>`);
+            w.document.write(\`<html><head><title>พิมพ์ใบโอนย้ายทรัพย์สิน</title>\${styles}</head><body>\${header}\${table}\${sign}\${printControls}</body></html>\`);
             w.document.close();
             w.focus();
             // ไม่ print อัตโนมัติ - ให้ผู้ใช้กดปุ่มพิมพ์เอง
@@ -3005,7 +3063,7 @@ function preparePayloadForSheets(payload) {
         // Reconstruct fromOwnerFull จาก form
         const fromEmpId = document.getElementById('tf_fromEmpId').value.trim();
         const fromOwnerName = document.getElementById('tf_fromOwnerName').value.trim();
-        const fromOwnerFull = (fromEmpId && fromOwnerName) ? `${fromEmpId} ${fromOwnerName}`.trim() : (currentAssetRow['ผู้รับผิดชอบ'] || '-');
+        const fromOwnerFull = (fromEmpId && fromOwnerName) ? \`\${fromEmpId} \${fromOwnerName}\`.trim() : (currentAssetRow['ผู้รับผิดชอบ'] || '-');
         // toOwnerFull จาก form
         const toOwnerFull = document.getElementById('tf_toOwner').value.trim();
         const payload = {
@@ -3156,7 +3214,7 @@ function preparePayloadForSheets(payload) {
           }, dates[0]);
           // Display
           const updateInfoEl = document.getElementById('dataUpdateInfo');
-          updateInfoEl.innerHTML = `<i class="fas fa-sync-alt"></i> DATA UPDATE: <span>${maxDateStr}</span> (ข้อมูลมาจาก Google Sheet เดียวกัน, Sheet: Update, Column: Date - ค่าสูงสุด)`;
+          updateInfoEl.innerHTML = `<i class="fas fa-sync-alt"></i> DATA UPDATE: <span>${maxDateStr}</span>`;
         } catch (err) {
           console.error('Load update date error:', err);
           const updateInfoEl = document.getElementById('dataUpdateInfo');
