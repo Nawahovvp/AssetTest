@@ -639,8 +639,8 @@
       word-wrap: break-word;
     }
     #globalHistoryTable th, #globalHistoryTable td {
-      padding: 8px 6px;
-      font-size: 12px;
+      padding: 4px 2px;
+      font-size: 10px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -664,22 +664,6 @@
     .timeline-table th {
       background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
       color: var(--white);
-    }
-    #globalHistoryTable .manage-col {
-      flex-wrap: nowrap;
-      gap: 2px;
-      justify-content: center;
-    }
-    #globalHistoryTable .print-transfer-btn,
-    #globalHistoryTable .delete-transfer-btn {
-      padding: 4px 6px;
-      font-size: 10px;
-      border-radius: 6px;
-      min-width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
     .manage-col {
       display: flex;
@@ -924,7 +908,7 @@
       .search-row-modal { flex-direction: column; gap: 8px; }
       .action-button[style*="padding:8px 12px"] { width: 100%; }
       .timeline-table th, .timeline-table td { padding: 8px 10px; font-size: 12px; }
-      #globalHistoryTable th, #globalHistoryTable td { padding: 6px 4px; font-size: 10px; }
+      #globalHistoryTable th, #globalHistoryTable td { padding: 3px 1px; font-size: 9px; }
       .delete-transfer-btn, .print-transfer-btn { padding: 4px 10px; font-size: 12px; }
       #globalHistoryTable .print-transfer-btn,
       #globalHistoryTable .delete-transfer-btn {
@@ -960,7 +944,7 @@
       th:nth-child(3), td:nth-child(3) { min-width: 80px; max-width: 100px; }
       th:nth-child(8), td:nth-child(8) { min-width: 70px; max-width: 90px; }
       #globalHistoryModal .modal-content h2 { font-size: 18px; }
-      #globalHistoryTable th, #globalHistoryTable td { padding: 4px 2px; font-size: 9px; }
+      #globalHistoryTable th, #globalHistoryTable td { padding: 2px 1px; font-size: 8px; }
       #globalHistoryTable .print-transfer-btn,
       #globalHistoryTable .delete-transfer-btn {
         padding: 2px 3px;
@@ -1075,6 +1059,39 @@
       transform: translateY(-2px);
       box-shadow: var(--shadow-lg);
     }
+    /* NEW: CSS for Delete Doc Button */
+    .delete-doc-button {
+      background: linear-gradient(135deg, var(--danger-color), #dc2626) !important;
+      color: var(--white) !important;
+    }
+    .delete-doc-button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: var(--shadow-lg);
+    }
+    .delete-doc-button:disabled {
+      background: var(--secondary-color) !important;
+      cursor: not-allowed;
+      transform: none;
+    }
+.cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(135deg, var(--danger-color), #dc2626);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+  animation: bounceIn 0.3s ease-out;
+}
   </style>
 </head>
 <body>
@@ -1102,7 +1119,10 @@
       <button id="reportButton" class="action-button print-button"><i class="fas fa-print"></i> รายงาน</button>
       <button id="historyButton" class="action-button history-button"><i class="fas fa-history"></i> ประวัติ</button>
       <button id="documentsButton" class="action-button documents-button"><i class="fas fa-file-alt"></i> เอกสารทั้งหมด</button>
-      <button id="cartButton" class="action-button cart-button" disabled><i class="fas fa-shopping-cart"></i> (0)</button>
+     <div style="position: relative; display: inline-block;">
+  <span id="cartBadge" class="cart-badge" style="display: none;">0</span>
+  <button id="cartButton" class="action-button cart-button" disabled><i class="fas fa-shopping-cart"></i> ตะกร้า</button>
+</div>
       <button id="clearCartButton" class="action-button" style="background:linear-gradient(135deg,var(--danger-color),#dc2626);" disabled><i class="fas fa-trash"></i> ล้างตะกร้า</button>
       <div id="userInfo"><i class="fas fa-user"></i> ยินดีต้อนรับ: <span id="loggedUserName"></span> <button id="logoutButton"><i class="fas fa-sign-out-alt"></i> Logout</button></div>
     </div>
@@ -1258,6 +1278,8 @@
         <div class="modal-buttons">
           <button type="button" id="saveButton" class="action-button" disabled><i class="fas fa-save"></i> บันทึก</button>
           <button type="button" id="printButton" class="action-button" style="background:linear-gradient(135deg, var(--info-color), #0891b2);" disabled><i class="fas fa-print"></i> พิมพ์</button>
+          <!-- NEW: Delete Doc Button - เพิ่มปุ่มลบเอกสาร (disabled โดย default) -->
+          <button type="button" id="deleteDocButton" class="action-button delete-doc-button" disabled style="display: none;"><i class="fas fa-trash-alt"></i> ลบเอกสาร</button>
           <button type="button" id="viewHistoryBtn" class="action-button" style="background:linear-gradient(135deg,var(--secondary-color),#475569);"><i class="fas fa-history"></i> ดูประวัติ</button>
           <button type="button" id="closeModalBtn" class="action-button" style="background:linear-gradient(135deg,var(--danger-color),#dc2626);"><i class="fas fa-times"></i> ออก</button>
         </div>
@@ -1306,16 +1328,15 @@
         <table class="timeline-table" id="globalHistoryTable">
           <thead>
             <tr>
-              <th style="width:80px;">เลขที่เอกสาร</th>
-              <th style="width:80px;">วันที่โอน</th>
-              <th style="width:100px;">รหัสทรัพย์สิน</th>
-              <th style="width:120px;">จาก Location</th>
-              <th style="width:120px;">ไป Location</th>
-              <th style="width:150px;">จากผู้รับผิดชอบ</th>
-              <th style="width:150px;">ผู้รับผิดชอบใหม่</th>
-              <th style="width:100px;">ผู้ดำเนินการ</th>
-              <th style="width:120px;">หมายเหตุ</th>
-              <th style="width:120px;">การจัดการ</th>
+              <th style="width:60px;">เลขที่เอกสาร</th>
+              <th style="width:70px;">วันที่โอน</th>
+              <th style="width:80px;">รหัสทรัพย์สิน</th>
+              <th style="width:100px;">จาก Location</th>
+              <th style="width:100px;">ไป Location</th>
+              <th style="width:120px;">จากผู้รับผิดชอบ</th>
+              <th style="width:120px;">ผู้รับผิดชอบใหม่</th>
+              <th style="width:80px;">ผู้ดำเนินการ</th>
+              <th style="width:100px;">หมายเหตุ</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -1420,6 +1441,10 @@
       // NEW: Update sheet URL
       const updateSheetName = 'Update';
       const updateUrl = `https://opensheet.elk.sh/${sheetID}/${updateSheetName}`;
+      // Transfers sheet URL for display
+      const transfersSheetID = '1BflzoxAZ6P2jfrsM1JL-cdcY9Va9-q10RhHXwBn1ARU';
+      const transfersSheetName = 'Transfers';
+      const transfersUrl = `https://opensheet.elk.sh/${transfersSheetID}/${transfersSheetName}`;
       // DOM refs
       const transferModal = document.getElementById('transferModal');
       const closeTransferModal = document.getElementById('closeTransferModal');
@@ -1467,6 +1492,7 @@
       const singleFromSection = document.getElementById('singleFromSection');
       const saveButton = document.getElementById('saveButton');
       const printButton = document.getElementById('printButton');
+      const deleteDocButton = document.getElementById('deleteDocButton'); // NEW: Ref for delete button
       const closeModalBtn = document.getElementById('closeModalBtn');
       const loginModal = document.getElementById('loginModal');
       const closeLoginModal = document.getElementById('closeLoginModal');
@@ -1831,19 +1857,31 @@
         }
       }
       function updateCartUI() {
-        cartButton.innerHTML = `<i class="fas fa-shopping-cart"></i> (${selectedAssets.length})`;
-        cartButton.disabled = selectedAssets.length === 0;
-        clearCartButton.disabled = selectedAssets.length === 0;
-        // FIX: อัปเดต selectAll state สำหรับ current page เท่านั้น
-        if (currentPageData.length > 0) {
-          const currentSelectedCount = selectedAssets.filter(a => currentPageData.some(r => normalizeAssetId(a['รหัสทรัพย์สิน']) === normalizeAssetId(r['รหัสทรัพย์สิน']))).length;
-          selectAllCheckbox.checked = currentSelectedCount === currentPageData.length;
-          selectAllCheckbox.indeterminate = currentSelectedCount > 0 && currentSelectedCount < currentPageData.length;
-        } else {
-          selectAllCheckbox.checked = false;
-          selectAllCheckbox.indeterminate = false;
-        }
-      }
+  const cartBadge = document.getElementById('cartBadge');
+  const cartCount = selectedAssets.length;
+  
+  // อัปเดต badge
+  if (cartCount > 0) {
+    cartBadge.textContent = cartCount;
+    cartBadge.style.display = 'flex';
+  } else {
+    cartBadge.style.display = 'none';
+  }
+  
+  cartButton.innerHTML = `<i class="fas fa-shopping-cart"></i> ตะกร้า`;
+  cartButton.disabled = cartCount === 0;
+  clearCartButton.disabled = cartCount === 0;
+  
+  // FIX: อัปเดต selectAll state สำหรับ current page เท่านั้น
+  if (currentPageData.length > 0) {
+    const currentSelectedCount = selectedAssets.filter(a => currentPageData.some(r => normalizeAssetId(a['รหัสทรัพย์สิน']) === normalizeAssetId(r['รหัสทรัพย์สิน']))).length;
+    selectAllCheckbox.checked = currentSelectedCount === currentPageData.length;
+    selectAllCheckbox.indeterminate = currentSelectedCount > 0 && currentSelectedCount < currentPageData.length;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
       function clearCart() {
         selectedAssets = [];
         currentCartOwner = null; // เพิ่ม: ล้าง currentCartOwner
@@ -2115,7 +2153,7 @@
       });
       reportButton.addEventListener('click', generateReport);
       historyButton.addEventListener('click', async () => {
-        globalHistoryTableBody.innerHTML = '<tr><td colspan="10" class="loading"><i class="fas fa-spinner"></i> กำลังโหลดประวัติ...</td></tr>';
+        globalHistoryTableBody.innerHTML = '<tr><td colspan="9" class="loading"><i class="fas fa-spinner"></i> กำลังโหลดประวัติ...</td></tr>';
         globalHistoryModal.style.display = 'block';
         await renderGlobalHistory();
       });
@@ -2176,6 +2214,10 @@
         const isPrintValid = isSaveValid && hasDocId;
         saveButton.disabled = !isSaveValid;
         printButton.disabled = !isPrintValid;
+        // NEW: Enable delete button if hasDocId and logged in
+        const hasValidDocId = hasDocId && loggedUser;
+        deleteDocButton.disabled = !hasValidDocId;
+        deleteDocButton.style.display = hasValidDocId ? 'flex' : 'none';
         return isSaveValid;
       }
       function openTransferModal(row, multi = false) {
@@ -2305,41 +2347,26 @@
         // Validate และ enable ปุ่มพิมพ์
         validateForm();
       }
-      // FIXED: getTransfers/setTransfers - Align action names, handle response.status
+      // FIXED: getTransfers - Use opensheet for display, fallback to local
       async function getTransfers(assetId = null) {
         try {
-          // ลองโหลดจาก GAS ก่อน (action: 'getTransfers')
-          const params = new URLSearchParams({ action: 'getTransfers' });
-          if (assetId) params.append('asset_id', assetId); // GAS ยังไม่ filter แต่ส่งไว้เผื่อ
-          const url = `${gasUrl}?${params.toString()}`;
-          const response = await jsonp(url);
-          if (response.status !== 'success') throw new Error(response.data || 'Unknown GAS error');
-        
-          const transfers = response.data || [];
-          // Sync กับ localStorage ถ้า GAS ว่างแต่ local มี
-          const localTransfers = safeParseLocal('assetTransfers');
-          if (transfers.length === 0 && localTransfers.length > 0) {
-            // Sync local to GAS
-            for (const t of localTransfers) {
-              const normalizedT = { ...t, asset_id: normalizeAssetId(t.asset_id) };
-              const res = await setTransfers(normalizedT);
-              if (res && res.row_id) { // ใช้ row_id จาก GAS
-                const index = localTransfers.findIndex(lt => lt.asset_id === t.asset_id && lt.date === t.date);
-                if (index !== -1) localTransfers[index].id = res.row_id;
-              }
-            }
-            localStorage.setItem('assetTransfers', JSON.stringify(localTransfers));
-            return await getTransfers(assetId); // Reload
+          // ดึงจาก opensheet สำหรับแสดงข้อมูล
+          const response = await fetch(transfersUrl);
+          if (!response.ok) throw new Error('Failed to load transfers from opensheet');
+          let transfers = await response.json();
+          // ถ้า assetId, filter client-side
+          if (assetId) {
+            transfers = transfers.filter(t => normalizeAssetId(t.asset_id) === normalizeAssetId(assetId));
           }
-          // Save to local as backup (set id = row_id if available)
-          transfers.forEach(t => { if (t.row_id) t.id = t.row_id; });
+          // Save to local as backup
           localStorage.setItem('assetTransfers', JSON.stringify(transfers));
           return transfers;
         } catch (err) {
-          console.error('GAS error, fallback to localStorage:', err);
+          console.error('Opensheet error, fallback to localStorage:', err);
           return safeParseLocal('assetTransfers');
         }
       }
+      // FIXED: setTransfers - Use GAS for insert
       async function setTransfers(payload) {
         try {
           // Normalize asset_id ก่อนบันทึก
@@ -2350,7 +2377,7 @@
           const url = `${gasUrl}?${params.toString()}`;
           const response = await jsonp(url);
           if (response.status !== 'success') throw new Error(response.data || 'Insert failed');
-        
+    
           const result = response.data;
           // ถ้าสำเร็จ, set id = row_id จาก GAS
           if (result && result.row_id) {
@@ -2372,7 +2399,7 @@
           throw err;
         }
       }
-      // FIXED: deleteSingleTransfer - Align action
+      // FIXED: deleteSingleTransfer - Use GAS for delete
       async function deleteSingleTransfer(transferId, assetId) {
         if (!confirm('คุณแน่ใจหรือไม่ที่จะลบรายการโอนย้ายนี้?')) return;
         try {
@@ -2381,12 +2408,12 @@
           const url = `${gasUrl}?${params.toString()}`;
           const response = await jsonp(url);
           if (response.status !== 'success') throw new Error(response.data || 'Delete failed');
-        
+    
           // ลบจาก localStorage
           let localList = safeParseLocal('assetTransfers');
           localList = localList.filter(t => t.id !== transferId);
           localStorage.setItem('assetTransfers', JSON.stringify(localList));
-          // Re-render history
+          // Re-render history (refresh from opensheet)
           await renderHistory(normalizeAssetId(assetId));
           alert('ลบรายการเรียบร้อย');
         } catch (err) {
@@ -2394,7 +2421,43 @@
           alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
         }
       }
-      // FIXED: generateDocId - Use separate GAS call + safe local fallback
+      // NEW: deleteByDocId - Use GAS for delete all transfers by Doc_id
+      async function deleteByDocId(docId) {
+        if (!confirm(`คุณแน่ใจหรือไม่ที่จะลบเอกสาร "${docId}" และรายการโอนย้ายทั้งหมดที่เกี่ยวข้อง?`)) return;
+        try {
+          // ลบจาก GAS via JSONP (action: 'deleteByDocId')
+          const params = new URLSearchParams({ action: 'deleteByDocId', docId: docId });
+          const url = `${gasUrl}?${params.toString()}`;
+          const response = await jsonp(url);
+          if (response.status !== 'success') throw new Error(response.data || 'Delete by Doc_id failed');
+    
+          // ลบจาก localStorage
+          let localList = safeParseLocal('assetTransfers');
+          localList = localList.filter(t => t.Doc_id !== docId);
+          localStorage.setItem('assetTransfers', JSON.stringify(localList));
+          // Refresh global history, documents list, and history in modal
+          await renderGlobalHistory();
+          await renderDocumentsList();
+          if (historyBox.style.display === 'block') {
+            // If history is open in modal, refresh it (use first asset in selectedAssets or currentAssetRow)
+            const assetId = isMultiMode && selectedAssets.length > 0 ? normalizeAssetId(selectedAssets[0]['รหัสทรัพย์สิน']) : (currentAssetRow ? normalizeAssetId(currentAssetRow['รหัสทรัพย์สิน']) : null);
+            if (assetId) await renderHistory(assetId);
+          }
+          // Close modal and clear form
+          transferModal.style.display = 'none';
+          selectedAssets = [];
+          currentCartOwner = null;
+          currentAssetRow = null;
+          isMultiMode = false;
+          updateCartUI();
+          filterAndRenderTable();
+          alert(`ลบเอกสาร "${docId}" และรายการที่เกี่ยวข้องเรียบร้อย`);
+        } catch (err) {
+          console.error('Delete by Doc_id error:', err);
+          alert('เกิดข้อผิดพลาดในการลบเอกสาร: ' + err.message);
+        }
+      }
+      // FIXED: generateDocId - Use GAS for generate
       async function generateDocId() {
         try {
           // Call GAS directly for generateDocId
@@ -2576,6 +2639,8 @@
           }
           // FIXED: Send Telegram notification once after loop (for multi/single)
           await sendTelegramNotification(payloads, isMultiMode);
+          // Refresh transfers data from opensheet after save
+          await getTransfers();
           filterAndRenderTable();
           // FIXED: ไม่ clearCart และไม่ reset mode/display เพื่อให้ข้อมูลยังอยู่สำหรับพิมพ์
           alert(`บันทึกการโอนย้ายเรียบร้อย (${payloads.length} รายการ) เลขที่เอกสาร: ${docId} (บันทึกใน Google Apps Script และ localStorage) และส่งแจ้งเตือน Telegram แล้ว\nสามารถกดพิมพ์ได้ทันที จากนั้นกด "ออก" หรือ "ล้างตะกร้า" เมื่อเสร็จ`);
@@ -2665,6 +2730,15 @@
         }
         showPrintForm(payloads);
       }
+      // NEW: Event listener for deleteDocButton
+      deleteDocButton.addEventListener('click', async () => {
+        const docId = document.getElementById('tf_docId').value.trim();
+        if (!docId) {
+          alert('ไม่พบเลขที่เอกสาร');
+          return;
+        }
+        await deleteByDocId(docId);
+      });
       // ฟังก์ชันแสดงฟอร์มพิมพ์ (รองรับ multi payloads)
       function showPrintForm(payloads) {
         let w = window.open('', '_blank');
@@ -2876,10 +2950,6 @@
             <td>${t.to_owner_name || '-'}</td>
             <td>${t.operator || '-'}</td>
             <td>${t.note || '-'}</td>
-            <td class="manage-col">
-              ${t.id ? '<button class="print-transfer-btn"><i class="fas fa-print"></i></button>' : ''}
-              ${t.id ? '<button class="delete-transfer-btn"><i class="fas fa-trash"></i> ลบ</button>' : ''}
-            </td>
           `;
           if (t.id) {
             const printBtn = tr.querySelector('.manage-col .print-transfer-btn');
@@ -2900,61 +2970,30 @@
         });
       }
       // Global History Render
-      async function renderGlobalHistory() {
-        const transfers = await getTransfers();
-        globalHistoryTableBody.innerHTML = '';
-        if (transfers.length === 0) {
-          globalHistoryTableBody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีประวัติการโอนย้าย</td></tr>';
-          return;
-        }
-        transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
-        transfers.forEach(t => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${t.Doc_id || '-'}</td>
-            <td>${t.date}</td>
-            <td>${t.asset_id || '-'}</td>
-            <td>${t.from_location || '-'}</td>
-            <td>${t.to_location || '-'}</td>
-            <td>${t.from_owner_name || '-'}</td>
-            <td>${t.to_owner_name || '-'}</td>
-            <td>${t.operator || '-'}</td>
-            <td>${t.note || '-'}</td>
-            <td class="manage-col">
-              <button class="print-transfer-btn"><i class="fas fa-print"></i></button>
-              ${t.id ? '<button class="delete-transfer-btn"><i class="fas fa-trash"></i></button>' : ''}
-            </td>
-          `;
-          const printBtn = tr.querySelector('.manage-col .print-transfer-btn');
-          printBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const assetRow = allData.find(r => normalizeAssetId(r['รหัสทรัพย์สิน']) === t.asset_id);
-            if (!assetRow) {
-              alert('ไม่พบข้อมูลทรัพย์สิน');
-              return;
-            }
-            currentAssetRow = assetRow;
-            openTransferModal(assetRow, false);
-            loadTransferToForm(t);
-            setTimeout(() => {
-              printCurrentForm();
-              transferModal.style.display = 'none';
-              currentAssetRow = null;
-            }, 100);
-          });
-          if (t.id) {
-            const deleteBtn = tr.querySelector('.manage-col .delete-transfer-btn');
-            deleteBtn.addEventListener('click', async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await deleteSingleTransfer(t.id || t.row_id, t.asset_id);
-              await renderGlobalHistory();
-            });
-          }
-          globalHistoryTableBody.appendChild(tr);
-        });
-      }
+async function renderGlobalHistory() {
+  const transfers = await getTransfers();
+  globalHistoryTableBody.innerHTML = '';
+  if (transfers.length === 0) {
+    globalHistoryTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--secondary-color);">ยังไม่มีประวัติการโอนย้าย</td></tr>';
+    return;
+  }
+  transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
+  transfers.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${t.Doc_id || '-'}</td>
+      <td>${t.date}</td>
+      <td>${t.asset_id || '-'}</td>
+      <td>${t.from_location || '-'}</td>
+      <td>${t.to_location || '-'}</td>
+      <td>${t.from_owner_name || '-'}</td>
+      <td>${t.to_owner_name || '-'}</td>
+      <td>${t.operator || '-'}</td>
+      <td>${t.note || '-'}</td>
+    `;
+    globalHistoryTableBody.appendChild(tr);
+  });
+}
       // NEW: Render Documents List (Unique by Doc_id)
       async function renderDocumentsList() {
         const transfers = await getTransfers();
